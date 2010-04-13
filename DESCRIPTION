@@ -1,4 +1,4 @@
-Package: h5R
+Package: h5r
 Type: Package
 Title: Interface to HDF5 Files
 Version: 1.0
