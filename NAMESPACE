@@ -1,0 +1,7 @@
+useDynLib(h5R)
+
+## Export everything lacking a leading .
+exportPattern("^[^\\.]")
+
+## export the classes.
+exportClass("H5Obj", "H5File", "H5Group", "H5Dataset")
