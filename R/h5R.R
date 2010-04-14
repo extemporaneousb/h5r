@@ -117,21 +117,20 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   return(.initH5DataContainer(o, attrName))
 })
 
-setMethod("[", "H5DataContainer", function(x, i, j, ..., drop = FALSE) {
+setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
   if (!.hasData(x)) {
     .putData(x, .loadDataset(x))
   }
-  .getData(x)[i, j, ..., drop = drop]
-})
-
-setMethod("[", "H5DataContainer", function(x, i) {
-  if (!.hasData(x)) {
-    .putData(x, .loadDataset(x))
+  d <- .getData(x)
+  
+  if (is.null(dim(x))) {
+    if (! missing(j))
+      stop("incorrect number of dimensions")
+    d[i]
   }
-  if (is.null(dim(x)))
-    .getData(x)[i]
-  else
-    .getData(x)[i,]
+  else {
+    drop(d[i, j, ..., drop = drop])
+  }
 })
 
 setGeneric("readDataAsVector", function(h5Obj, ...) {

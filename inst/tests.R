@@ -37,3 +37,31 @@ a <- replicate(100, {
   rm(x)
   b - gc()[,1]
 })
+
+assertError <- function(expr) {
+  tryCatch({{expr}; FALSE}, simpleError = function(e) {
+    return(TRUE)
+  })
+}
+
+
+##
+## checks.
+##
+all(c(is.null(dim(d[1,10])),
+      all(dim(d[,]) == dim(d)),
+      is.null(dim(d2)),
+      length(d2) == 20,
+      is.null(dim(d2[1])),
+      is.null(dim(d2[1:4])),
+      is.null(dim(d3[1,1,1])),
+      all(dim(d3[,,]) == dim(d3)),
+      all(dim(d3[1,,]) == c(7,9)),
+      all(dim(d3[,,1]) == c(3,7)),
+      all(dim(d3[,1,]) == c(3,9)),
+      
+      ## should all be errors.
+      assertError(d2[1,1:4]),
+      assertError(d3[1]),
+      assertError(d3[1,])))
+
