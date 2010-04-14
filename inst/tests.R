@@ -10,6 +10,8 @@ f <- H5File(files[1])
 g <- getH5Group(f, "group_1")
 d <- getH5Dataset(g, "ds_1")
 d[1:10, 1:10]
+d[1:10,]
+d[,1]
 
 ## string dataset
 d2 <- getH5Dataset(g, "ds_2")

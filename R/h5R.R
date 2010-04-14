@@ -128,7 +128,10 @@ setMethod("[", "H5DataContainer", function(x, i) {
   if (!.hasData(x)) {
     .putData(x, .loadDataset(x))
   }
-  .getData(x)[i]
+  if (is.null(dim(x)))
+    .getData(x)[i]
+  else
+    .getData(x)[i,]
 })
 
 setGeneric("readDataAsVector", function(h5Obj, ...) {
