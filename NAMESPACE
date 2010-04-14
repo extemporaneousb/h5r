@@ -4,4 +4,4 @@ useDynLib(h5r)
 exportPattern("^[^\\.]")
 
 ## export the classes.
-exportClass("H5Obj", "H5File", "H5Group", "H5Dataset")
+exportClass("H5Obj", "H5File", "H5Group", "H5Dataset", "H5Attribute", "H5DataContainer")

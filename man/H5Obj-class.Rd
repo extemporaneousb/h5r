@@ -5,25 +5,24 @@
 \alias{H5File-class}
 \alias{H5Group-class}
 \alias{H5Dataset-class}
-\alias{getH5Attribute,H5Obj,character-method}
-\alias{getH5Dataset,H5Obj,character-method}
-\alias{getH5Dim,H5Obj,character-method}
-\alias{getH5Group,H5Obj-method}
-\alias{getH5Type,H5Obj,character-method}
-\alias{getH5Attribute-methods}
-\alias{getH5Dataset-methods}
-\alias{getH5Dim-methods}
-\alias{getH5Group-methods}
-\alias{getH5Type-methods}
-\alias{getH5Attribute}
-\alias{getH5Dataset}
-\alias{getH5Dim}
+\alias{H5DataContainer-class}
+\alias{H5Attribute-class}
+\alias{getH5Group,H5Obj,character-method}
 \alias{getH5Group}
+\alias{getH5Attribute,H5Obj,character-method}
+\alias{getH5Attribute}
+\alias{getH5Dataset,H5Obj,character-method}
+\alias{getH5Dataset}
+\alias{getH5Dim,H5DataContainer-method}
+\alias{getH5Dim}
+\alias{getH5Type,H5DataContainer-method}
 \alias{getH5Type}
-\alias{nrow,H5Dataset-method}
-\alias{ncol,H5Dataset-method}
-\alias{[,H5Dataset-method}
-\alias{dim,H5Dataset-method}
+\alias{nrow,H5DataContainer-method}
+\alias{ncol,H5DataContainer-method}
+\alias{[,H5DataContainer,ANY,ANY,ANY-method}
+\alias{[,H5DataContainer,ANY,missing,missing-method}
+\alias{dim,H5DataContainer-method}
+\alias{length,H5DataContainer-method}
 
 \title{Class "H5Obj"}
 \description{Classes for objects originating from HDF5 files.}
@@ -44,21 +43,25 @@
     \item{getH5Dataset}{\code{signature(h5Obj = "H5Obj", datasetName =
 	"character")}: Get a dataset from an H5Obj, this needs to be
       either a H5File or H5Group. }
-    \item{getH5Dim}{\code{signature(h5Obj = "H5Obj", datasetName =
+    \item{getH5Dim}{\code{signature(h5Obj = "H5DataContainer", datasetName =
 	"character")}: 
       This gets the dimension of a dataset given a dataset name and an
       H5Obj. This function is used internally, however the more typical
       case is to retrieve a dataset and then ask its dimension. 
     }
-    \item{getH5Group}{\code{signature(h5Obj = "H5Obj")}: Get an H5Group
-      from another H5Group or H5File object. }
-    \item{getH5Type}{\code{signature(h5Obj = "H5Obj", datasetName =
+    \item{getH5Group}{\code{signature(h5Obj = "H5Obj", groupName =
+	"character")}:  Get an H5Group from another H5Group or H5File
+      object. 
+    }
+    \item{getH5Type}{\code{signature(h5Obj = "H5DataContainer", datasetName =
 	"character")}: This gets the type of a dataset given its parent
-      and its name. Similar to getH5Dim this function is useful internally.}
-	 }
+      and its name. Similar to getH5Dim this function is useful
+      internally.
+    }
+  }
 }
 \examples{
- f <- system.file("h5_files", "ex_1.h5", package = "h5R")
+ f <- system.file("h5_files", "ex_1.h5", package = "h5r")
  h5 <- H5File(f)
  d <- getH5Dataset(getH5Group(h5, "group_1"), "ds_1")
  dim(d)

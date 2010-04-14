@@ -68,7 +68,7 @@ setGeneric("getH5Attribute", function(h5Obj, attrName, ...) {
   standardGeneric("getH5Attribute")
 })
 
-setMethod("getH5Group", "H5Obj", function(h5Obj, groupName) {
+setMethod("getH5Group", c("H5Obj", "character"), function(h5Obj, groupName) {
   .H5Group(.Call("h5R_get_group", .ePtr(h5Obj), groupName,
                  PACKAGE = 'h5r'), groupName)
 })

@@ -19,7 +19,7 @@ H5File(fileName)
   An object of class H5File. 
 }
 \examples{
- f <- system.file("h5_files", "ex_1.h5", package = "h5R")
+ f <- system.file("h5_files", "ex_1.h5", package = "h5r")
  h5 <- H5File(f)
  d <- getH5Dataset(getH5Group(h5, "group_1"), "ds_1")
  dim(d)
