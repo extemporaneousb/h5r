@@ -15,11 +15,16 @@ ds = g.create_dataset("ds_2", data = s, maxshape = (None))
 
 ds.attrs.create("x", array([1,2,3], dtype = "uint32"))
 ds.attrs.create("y", array([[1,2,3], [5,6,7]], dtype = "uint32"))
+ds.attrs.create("z", s)
 
 a = random.randint(0, int(1e6), 3 * 7 * 9)
 a = a.reshape((3, 7, 9))
 g.create_dataset("ds_3", data = a, maxshape = (None, None, None))
 
+g.create_dataset("ds_4", data = s.reshape((2, 10)))
+
 f.close()
 
+f = h5py.File("ex_1.h5")
+f['group_1']['ds_2'].attrs['z']
 

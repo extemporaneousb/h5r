@@ -2,9 +2,10 @@
  * R/C Interface code for HDF5 file format. 
  *
  * 
+ * 13/04/2010 (JHB) : more refactoring. added finalizer
  *
- * 10/04/2010: refactored interface to hide most of the type 
- *             determination in C. JHB
+ * 10/04/2010 (JHB) : refactored interface to hide most of the type 
+ *                    determination in C.
  */
 #include <hdf5.h>
 #include <hdf5_hl.h>
@@ -16,295 +17,219 @@
 #define NM(argname) (CHAR(STRING_ELT(argname, 0)))
 
 typedef struct h5_holder {
+    int is_file;
     hid_t id;
 } h5_holder;
 
-SEXP h5R_open(SEXP filename) {
-    const char* f_name = NM(filename);
+void h5R_finalizer(SEXP h5_obj) {
+    h5_holder* h = (h5_holder*) R_ExternalPtrAddr(h5_obj);
+
+    if (! h) return;
+    if (h->is_file)
+	H5Fclose(HID(h5_obj));
+ 
+    Free(h);
+}
+
+SEXP _h5R_make_holder (hid_t id, int is_file) {
     h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
-    holder->id = H5Fopen(f_name, H5F_ACC_RDONLY, H5P_DEFAULT);
-    return R_MakeExternalPtr(holder, install("hd5_handle"), R_NilValue);
-}
-
-SEXP h5R_close(SEXP h5_file) {
-    H5Fclose(HID(h5_file));
-    Free(h5_file);
-    return R_NilValue;
-}
-
-SEXP h5R_get_dim(SEXP h5_file, SEXP dataset) {
-    SEXP ans;
-    int rank = -1; 
-    int i;
-      
-    /* determine the number of dimensions. */
-    H5LTget_dataset_ndims(HID(h5_file), NM(dataset), &rank);
-    hsize_t* dims = Calloc((size_t) rank, hsize_t);
-    herr_t status = H5LTget_dataset_info(HID(h5_file), NM(dataset), dims, NULL, NULL); 
-
-    /* vectors with only length are represented as column vectors. */
-    if (rank == 1) {
-	PROTECT(ans = allocVector(INTSXP, 2));
-	INTEGER(ans)[0] = dims[0];
-	INTEGER(ans)[1] = 1;
-    }
-    else {
-	PROTECT(ans = allocVector(INTSXP, rank));
-	for (i = 0; i < rank; i++) 
-	    INTEGER(ans)[i] = dims[i];
-    }
-    UNPROTECT(1);
-    Free(dims);
+    holder->id = id;
+    holder->is_file = is_file;
     
-    return ans;
+    SEXP e_ptr = R_MakeExternalPtr(holder, install("hd5_handle"), R_NilValue); 
+    R_RegisterCFinalizerEx(e_ptr, h5R_finalizer, TRUE);
+
+    return e_ptr;
+}
+
+SEXP h5R_open(SEXP filename) {
+    return _h5R_make_holder(H5Fopen(NM(filename), H5F_ACC_RDONLY, H5P_DEFAULT), 1);
 }
 
 SEXP h5R_get_group(SEXP h5_obj, SEXP group_name) {
-    h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
-    holder->id = H5Gopen(HID(h5_obj), NM(group_name), H5P_DEFAULT);
-    return R_MakeExternalPtr(holder, install("hd5_handle"), R_NilValue);
+    return _h5R_make_holder(H5Gopen(HID(h5_obj), NM(group_name), H5P_DEFAULT), 0);
 }
 
 SEXP h5R_get_dataset(SEXP h5_obj, SEXP dataset_name) {
-    h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
-    holder->id = H5Dopen(HID(h5_obj), NM(dataset_name), H5P_DEFAULT);
-    return R_MakeExternalPtr(holder, install("hd5_handle"), R_NilValue);
+    return _h5R_make_holder(H5Dopen(HID(h5_obj), NM(dataset_name), H5P_DEFAULT), 0);
 }
 
-SEXP h5R_get_type(SEXP h5_obj, SEXP dataset_name) {
-    SEXP dtype_id;
+SEXP h5R_get_attr(SEXP h5_obj, SEXP attr_name) {
+    return _h5R_make_holder(H5Aopen(HID(h5_obj), NM(attr_name), H5P_DEFAULT), 0);
+}
 
-    hid_t id = H5Dopen(HID(h5_obj), NM(dataset_name), H5P_DEFAULT);
-    hid_t cls_id = H5Dget_type(id);
-    H5T_class_t cls = H5Tget_class(cls_id);
+SEXP h5R_get_type(SEXP h5_obj) {
+    SEXP dtype;
+    hid_t cls_id;
 
-    PROTECT(dtype_id = allocVector(INTSXP, 1));
-    switch (cls) {
-    case H5T_INTEGER: 
-	INTEGER(dtype_id)[0] = 1;
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	cls_id = H5Dget_type(HID(h5_obj));
 	break;
-    case H5T_FLOAT:
-	INTEGER(dtype_id)[0] = 2;
-	break;
-    case H5T_STRING:
-	INTEGER(dtype_id)[0] = 3;
+    case H5I_ATTR:
+	cls_id = H5Aget_type(HID(h5_obj));
 	break;
     default:
-	INTEGER(dtype_id)[0] = -1;
+	error("Unkown object in h5R_get_type.");
     }
 
+    PROTECT(dtype = ScalarInteger(H5Tget_class(cls_id)));
     H5Tclose(cls_id);
-    H5Dclose(id);
-    
     UNPROTECT(1);
-    return(dtype_id);
+
+    return(dtype);
 }
 
-SEXP h5R_get_dataset_str(SEXP h5_dataset) {
-    int j,i;
-    SEXP res;
-    hsize_t dims[1] = {0};
+hid_t _h5R_get_space(SEXP h5_obj) {
+    hid_t space;
 
-    hid_t dset = HID(h5_dataset);
-
-    /*
-     * Get the datatype.
-     */
-    hid_t filetype = H5Dget_type (dset);
-
-    /*
-     * Get dataspace and allocate memory for read buffer.
-     */
-    hid_t space = H5Dget_space (dset);
-    int ndims = H5Sget_simple_extent_dims (space, dims, NULL);
-    char** rdata = (char **) malloc(dims[0]*sizeof(char*));
-
-    /*
-     * Create the memory datatype.
-     */
-    hid_t memtype = H5Tcopy (H5T_C_S1);
-    herr_t status = H5Tset_size (memtype, H5T_VARIABLE);
-    
-    /*
-     * Read the data.
-     */
-    status = H5Dread(dset, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdata);
-
-    /*
-     * Determine the size of the vector to allocate.
-     */
-    /* j = 0; */
-    /* for (i=0; i<dims[0]; i++) */
-    /* 	if (rdata[i]) j++; */
-    j = dims[0];
-    
-    PROTECT(res = allocVector(STRSXP, j));
-    for (i = 0; i < j; i++) {
-	if (rdata[i])
-	    SET_STRING_ELT(res, i, mkChar(rdata[i]));
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	space = H5Dget_space(HID(h5_obj));
+	break;
+    case H5I_ATTR:
+	space = H5Aget_space(HID(h5_obj));
+	break;
+    default:
+	error("Unknown object in _h5R_get_space.");
     }
+}
+
+int _h5R_get_ndims(SEXP h5_obj) {
+    hid_t space = _h5R_get_space(h5_obj);
+    int ndims = H5Sget_simple_extent_ndims(space);
+    return ((ndims < 0) ? 1 : ndims);
+}
+
+int _h5R_get_nelts(SEXP h5_obj) {
+    int v = 1; int i;
+    int ndims = _h5R_get_ndims(h5_obj);
+    hid_t space = _h5R_get_space(h5_obj);
+    
+    hsize_t* dims = (hsize_t* ) Calloc(ndims, hsize_t*);
+    H5Sget_simple_extent_dims(space, dims, NULL);
+    
+    for (i = 0; i < ndims; i++)
+	v *= dims[i];
+    
+    Free(dims);
+    H5Sclose(space);
+
+    return(v);
+}
+
+SEXP h5R_get_dims(SEXP h5_obj) {
+    int i; SEXP res; 
+    int ndims = _h5R_get_ndims(h5_obj);
+    hid_t space = _h5R_get_space(h5_obj);
+
+    hsize_t* dims = (hsize_t* ) Calloc(ndims, hsize_t*);
+    H5Sget_simple_extent_dims(space, dims, NULL);
+    
+    PROTECT(res = allocVector(INTSXP, ndims)); 
+    for (i = 0; i < ndims; i++)
+	INTEGER(res)[i] = dims[i];
     UNPROTECT(1);
+    
+    Free(dims);
+    H5Sclose(space);
+    
+    return res;
+}
 
-    /*
-     * Close and release resources.  Note that H5Dvlen_reclaim works
-     * for variable-length strings as well as variable-length arrays.
-     * Also note that we must still free the array of pointers stored
-     * in rdata, as H5Tvlen_reclaim only frees the data these point to.
-     */
-    status = H5Dvlen_reclaim (memtype, space, H5P_DEFAULT, rdata);
-    free(rdata);
+SEXP _h5R_read_vlen_str(SEXP h5_obj) {
+    int i;
 
-    status = H5Sclose (space);
-    status = H5Tclose (filetype);
-    status = H5Tclose (memtype);
+    SEXP res  = R_NilValue;
+    int ndims = _h5R_get_ndims(h5_obj);
+    int nelts = _h5R_get_nelts(h5_obj);
+
+    char** rdata  = (char **) Calloc(nelts, char*);
+    hid_t memtype = H5Tcopy (H5T_C_S1);
+    H5Tset_size (memtype, H5T_VARIABLE);
+    
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	H5Dread(HID(h5_obj), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdata);
+	break;
+    case H5I_ATTR:
+	H5Aread(HID(h5_obj), memtype, rdata);
+	break;
+    default:
+	error("Unkown object in _h5R_read_vlen_str");
+    }
+    
+    PROTECT(res = allocVector(STRSXP, nelts));
+    for (i = 0; i < nelts; i++)
+	if (rdata[i])
+     	    SET_STRING_ELT(res, i, mkChar(rdata[i])); 
+    UNPROTECT(1); 
+
+    H5Dvlen_reclaim (memtype, _h5R_get_space(h5_obj), H5P_DEFAULT, rdata);
+    Free(rdata);
+    H5Tclose(memtype);
 
     return res;
 }
 
-SEXP h5R_read_dataset(SEXP h5_dataset, SEXP _rSize, SEXP _rType) {
-    int rType = INTEGER(_rType)[0];
-    int rSize = INTEGER(_rSize)[0];
+SEXP h5R_read_dataset(SEXP h5_dataset) {
+    SEXP dta;
+    hid_t memtype;
+    void* buf; 
+
+    switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
+    case H5T_INTEGER : 
+	PROTECT(dta = allocVector(INTSXP, _h5R_get_nelts(h5_dataset)));
+	memtype = H5T_NATIVE_INT;
+	buf = INTEGER(dta);
+	break;
+    case H5T_FLOAT :
+	PROTECT(dta = allocVector(REALSXP, _h5R_get_nelts(h5_dataset)));
+	memtype = H5T_NATIVE_DOUBLE;
+	buf = REAL(dta);
+	break;
+    case H5T_STRING :
+	return _h5R_read_vlen_str(h5_dataset);
+    default:
+	error("Unsupported class in h5R_read_dataset.");
+    }
+    H5Dread(HID(h5_dataset), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+    UNPROTECT(1);
+
+    return(dta);
+}
+  
+/** 
+ * I am currently keeping read_attr and read_dataset separate because
+ * I think that we'll want to separate them in the future to do more
+ * complicated things like hyperslab selection.
+ */
+SEXP h5R_read_attr(SEXP h5_attr) {
     int up = 0;
 
     SEXP dta;
     hid_t memtype;
-
     void* buf; 
 
-    switch (rType) {
-    case 1 : 
-	up++;
-	PROTECT(dta = allocVector(INTSXP, rSize));
-	memtype = H5T_NATIVE_INT;
-	buf = INTEGER(dta);
-	break;
-    case 2 :
-	up++;
-	PROTECT(dta = allocVector(REALSXP, rSize));
-	memtype = H5T_NATIVE_DOUBLE;
-	buf = REAL(dta);
-	break;
-    case 3 :
-	/** There is a possibility to refactor this as well,
-	    however, it doesn't seem to warrant that at the 
-	    moment. **/
-	return h5R_get_dataset_str(h5_dataset);
-    }
-    
-    H5Dread(HID(h5_dataset), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
-
-    UNPROTECT(up);
-    return(dta);
-    
-}
-
-  
-SEXP h5R_get_attribute(SEXP h5_obj, SEXP attr_name) {
-    hid_t attr = H5Aopen(HID(h5_obj), NM(attr_name), H5P_DEFAULT);
-    hid_t memtype = H5Aget_type(attr);
-    hid_t space = H5Aget_space(attr);
-
-    /** this is assuming 1-d attributes. **/
-    hsize_t dims[1] = {1}; 
-    int ndims = H5Sget_simple_extent_dims(space, dims, NULL);
-
-    SEXP dta; 
-    void* buf;
-    int up = 0;
-
-    switch (H5Tget_class(memtype)) {
+    switch (INTEGER(h5R_get_type(h5_attr))[0]) {
     case H5T_INTEGER:
-	PROTECT(dta = allocVector(INTSXP, dims[0]));
+	PROTECT(dta = allocVector(INTSXP, _h5R_get_nelts(h5_attr)));
 	buf = INTEGER(dta);
-	up++;
+	memtype = H5T_NATIVE_INT;
 	break;
     case H5T_FLOAT:
-	PROTECT(dta = allocVector(REALSXP, dims[0]));
+	PROTECT(dta = allocVector(REALSXP, _h5R_get_nelts(h5_attr)));
 	buf = REAL(dta);
-	up++;
+	memtype = H5T_NATIVE_DOUBLE;
 	break;
     case H5T_STRING:
-	return R_NilValue;
+	return _h5R_read_vlen_str(h5_attr);
     default:
-	return R_NilValue;
+	error("Unsupported class in h5R_read_attr.");
     }
 
-    H5Aread(attr, memtype, buf);
-    UNPROTECT(up);
-
-    H5Aclose(attr);
-    H5Tclose(memtype);
-    H5Sclose(space);
+    H5Aread(HID(h5_attr), memtype, buf);
+    UNPROTECT(1);
 
     return dta;
 }
-
-
-
-/**
-   below is code that I was using before refactoring. 
-**/
-
-
-/* size_t _get_dataset_size(hid_t file, const char* ds_name) { */
-/*     int rank    =-1; */
-/*     size_t size = 1; */
-/*     int i;  */
-   
-/*     H5LTget_dataset_ndims(file, ds_name, &rank); */
-/*     hsize_t* dims = Calloc((size_t) rank, hsize_t); */
-/*     herr_t status = H5LTget_dataset_info(file, ds_name, dims, NULL, NULL);  */
-
-/*     for (i = 0; i < rank; i++)  */
-/* 	size *= dims[i]; */
-
-/*     Free(dims); */
-/*     return size; */
-/* } */
-
-/* SEXP h5R_get_dataset_int(SEXP h5_file, SEXP dataset) { */
-/*     SEXP data; herr_t status; */
-/*     size_t v = _get_dataset_size(HID(h5_file), NM(dataset)); */
-/*     PROTECT(data = allocVector(INTSXP, v)); */
-/*     status = H5LTread_dataset_int(HID(h5_file), NM(dataset), INTEGER(data)); */
-/*     UNPROTECT(1); */
-/*     return data; */
-/* } */
-
-/* SEXP h5R_get_dataset_float(SEXP h5_file, SEXP dataset) { */
-/*     SEXP data; herr_t status; */
-/*     size_t v = _get_dataset_size(HID(h5_file), NM(dataset)); */
-/*     PROTECT(data = allocVector(REALSXP, v)); */
-/*     status = H5LTread_dataset_double(HID(h5_file), NM(dataset), REAL(data)); */
-/*     UNPROTECT(1); */
-/*     return data; */
-/* } */
-
-/* SEXP h5R_get_attribute_int(SEXP h5_obj, SEXP ds_name, SEXP attr_name)  */
-/* { */
-/*     int rank = -1; */
-/*     size_t size = 1; */
-/*     SEXP data; */
-/*     int v = 1; */
-/*     int i; */
-
-/*     Rprintf("dataset: %s, attribute: %s\n", NM(ds_name), NM(attr_name)); */
-/*     H5LTget_attribute_ndims(HID(h5_obj), NM(ds_name), NM(attr_name), &rank); */
-/*     Rprintf("rank %d\n", rank); */
-
-/*     if (rank > 0) { */
-/* 	hsize_t* dims = Calloc((size_t) rank, hsize_t); */
-/* 	H5LTget_attribute_info(HID(h5_obj), NM(ds_name),  */
-/* 			       NM(attr_name), dims, NULL, NULL);  */
-/* 	for (i = 0; i < rank; i++) */
-/* 	    v *= dims[i]; */
-/* 	PROTECT(data = allocVector(INTSXP, v)); */
-/*     } else { */
-/* 	PROTECT(data = allocVector(INTSXP, 1)); */
-/*     } */
-/*     Rprintf("allocated data.\n"); */
-
-/*     H5LTget_attribute_int(HID(h5_obj), NM(ds_name), NM(attr_name), INTEGER(data)); */
-/*     UNPROTECT(1); */
-/*     return data; */
-/* } */

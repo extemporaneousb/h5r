@@ -1,15 +1,27 @@
-.h5Types <- c("integer", "numeric", "character")
+## ##############################################################################
+##
+## h5R.R : Main interface file to the hdf5 C libraries.
+##
+## ##############################################################################
+
+## These are defined in H5Tpublic.h
+.h5Types <- c("integer", "numeric", "time", "character", "logical")
 
 setClass("H5Obj", representation(ePtr = "externalptr"))
 setClass("H5File", contains = "H5Obj", representation(fileName = "character"))
 setClass("H5Group", contains = "H5Obj", representation(name = "character"))
-setClass("H5Dataset", contains = "H5Obj",
+
+setClass("H5DataContainer", contains = "H5Obj",
          representation(name = "character", dims = "integer",
-                        h5Type = "character", .data = "environment"))
+                        h5Type = "integer", .data = "environment"))
+setClass("H5Dataset", contains = "H5DataContainer")
+setClass("H5Attribute", contains = "H5DataContainer")
 
 H5File <- function(fileName) {
   new("H5File", fileName)
 }
+
+.ePtr <- function(obj) obj@ePtr
 
 .H5Obj <- function(ep) {
   o <- new("H5Obj")
@@ -24,44 +36,27 @@ H5File <- function(fileName) {
   return(o)
 }
 
-.H5Dataset <- function(ep, name, h5Type, dims) {
-  o <- new("H5Dataset")
-  o@name <- name
-  o@ePtr <- ep
-  o@h5Type <- h5Type
-  o@dims <- dims
-
-  ## This caches the data. At some point, we'll want to
-  ## move away from this and just grab things from disk
-  ## and provide a mechanism to cache.
-  o@.data <- new.env(parent = emptyenv(), hash = TRUE)
-
-  return(o)
+.hasData <- function(h5DataContainer) {
+  return(exists(".data", h5DataContainer@.data))
 }
 
-.ePtr <- function(obj) obj@ePtr
-
-.hasData <- function(h5Dataset) {
-  return(exists(".data", h5Dataset@.data))
+.putData <- function(h5DataContainer, dta) {
+  assign(".data", dta, h5DataContainer@.data)
 }
 
-.putData <- function(h5Dataset, dta) {
-  assign(".data", dta, h5Dataset@.data)
-}
-
-.getData <- function(h5Dataset) {
-  get(".data", h5Dataset@.data)
+.getData <- function(h5DataContainer) {
+  get(".data", h5DataContainer@.data)
 }
 
 setGeneric("getH5Group", function(h5Obj, groupName, ...) {
   standardGeneric("getH5Group")
 })
 
-setGeneric("getH5Dim", function(h5Obj, datasetName, ...) {
+setGeneric("getH5Dim", function(h5Obj, ...) {
   standardGeneric("getH5Dim")
 })
 
-setGeneric("getH5Type", function(h5Obj, datasetName, ...) {
+setGeneric("getH5Type", function(h5Obj, ...) {
   standardGeneric("getH5Type")
 })
 
@@ -74,53 +69,16 @@ setGeneric("getH5Attribute", function(h5Obj, attrName, ...) {
 })
 
 setMethod("getH5Group", "H5Obj", function(h5Obj, groupName) {
-  .H5Group(.Call("h5R_get_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5R'),
-           groupName)
+  .H5Group(.Call("h5R_get_group", .ePtr(h5Obj), groupName,
+                 PACKAGE = 'h5r'), groupName)
 })
 
-setMethod("getH5Dim", c("H5Obj", "character"), function(h5Obj, datasetName) {
-  .Call('h5R_get_dim', .ePtr(h5Obj), datasetName, PACKAGE = 'h5R')
+setMethod("getH5Dim", "H5DataContainer", function(h5Obj) {
+  .Call('h5R_get_dims', .ePtr(h5Obj), PACKAGE = 'h5r')
 })
 
-setMethod("getH5Type", c("H5Obj", "character"), function(h5Obj, datasetName) {
-  i <- .Call("h5R_get_type", .ePtr(h5Obj), datasetName, PACKAGE = 'h5R')
-  stopifnot(i > 0)
-  .h5Types[i]
-})
-
-setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName) {
-  ep <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5R')
-  dims <- getH5Dim(h5Obj, datasetName)
-  h5Type <- getH5Type(h5Obj, datasetName)
-  return(.H5Dataset(ep, datasetName, h5Type, dims))
-})
-
-setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
-  if (!.hasData(x)) {
-    .putData(x, .loadDataset(x))
-  }
-  .getData(x)[i, j, ..., drop = drop]
-})
-
-readDataAsVector <- function(h5Dataset) {
-  size <- prod(h5Dataset@dims)
-  rtype <- which(h5Dataset@h5Type == .h5Types)
-  .Call('h5R_read_dataset', .ePtr(h5Dataset), as.integer(size),
-        as.integer(rtype), PACKAGE = 'h5R')
-}
-
-.loadDataset <- function(h5Dataset) {
-  d <- readDataAsVector(h5Dataset)
-  dim(d) <- rev(h5Dataset@dims)
-
-  if (length(dim(d)) == 2)
-    return(t(d))
-  else
-    return(d)
-}
-
-setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
-  .Call('h5R_get_attribute', .ePtr(h5Obj), attrName)
+setMethod("getH5Type", "H5DataContainer", function(h5Obj) {
+  .Call("h5R_get_type", .ePtr(h5Obj), PACKAGE = 'h5r')
 })
 
 setMethod("initialize", "H5File", function(.Object, fileName, ...) {
@@ -133,6 +91,72 @@ setMethod("initialize", "H5File", function(.Object, fileName, ...) {
   .Object@fileName <- fileName
   return(.Object)
 })
+
+.initH5DataContainer <- function(o, name) {
+  o@name   <- name
+  o@dims   <- getH5Dim(o)
+  o@h5Type <- getH5Type(o)
+
+  ## This caches the data. At some point, we'll want to
+  ## move away from this and just grab things from disk
+  ## and provide a mechanism to cache.
+  o@.data <- new.env(parent = emptyenv(), hash = TRUE)
+
+  return(o)
+}
+
+setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName) {
+  o <- new("H5Dataset")
+  o@ePtr <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5r')
+  return(.initH5DataContainer(o, datasetName))
+})
+
+setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
+  o <- new("H5Attribute")
+  o@ePtr <- .Call("h5R_get_attr", .ePtr(h5Obj), attrName, PACKAGE = 'h5r')
+  return(.initH5DataContainer(o, attrName))
+})
+
+setMethod("[", "H5DataContainer", function(x, i, j, ..., drop = FALSE) {
+  if (!.hasData(x)) {
+    .putData(x, .loadDataset(x))
+  }
+  .getData(x)[i, j, ..., drop = drop]
+})
+
+setMethod("[", "H5DataContainer", function(x, i) {
+  if (!.hasData(x)) {
+    .putData(x, .loadDataset(x))
+  }
+  .getData(x)[i]
+})
+
+setGeneric("readDataAsVector", function(h5Obj, ...) {
+  standardGeneric("readDataAsVector")
+})
+
+setMethod("readDataAsVector", "H5Dataset", function(h5Obj) {
+  .Call('h5R_read_dataset', .ePtr(h5Obj), PACKAGE = 'h5r')
+})
+
+setMethod("readDataAsVector", "H5Attribute", function(h5Obj) {
+  .Call('h5R_read_attr', .ePtr(h5Obj), PACKAGE = 'h5r')
+})
+
+.loadDataset <- function(h5Dataset) {
+  d <- readDataAsVector(h5Dataset)
+  
+  if (length(dim(h5Dataset)) == 2) {
+    ## I do this because of the column-wise packing of
+    ## matrices in R.
+    dim(d) <- rev(dim(h5Dataset))
+    return(t(d))
+  }
+  else {
+    dim(d) <- dim(h5Dataset)
+    return(d)
+  }
+}
 
 setMethod("show", "H5Obj", function(object) {
   cat("class of:", class(object), "\n")
@@ -148,14 +172,18 @@ setMethod("show", "H5Group", function(object) {
   cat("name:", object@name, "\n")
 })
 
-setMethod("show", "H5Dataset", function(object) {
+.getTypeString <- function(h5Dataset) {
+  .h5Types[h5Dataset@h5Type + 1]
+}
+
+setMethod("show", "H5DataContainer", function(object) {
   callNextMethod(object)
   cat("name:", object@name, "\n")
   cat("dim: ", object@dims, "\n")
-  cat("type:", object@h5Type, "\n")
+  cat("type:", .getTypeString(object), "\n")
 })
 
-setMethod("dim", "H5Dataset", function(x) x@dims)
-setMethod("nrow", "H5Dataset", function(x) x@dims[1])
-setMethod("ncol", "H5Dataset", function(x) x@dims[2])
-# setMethod("head", "H5Dataset", function(x, n = 10) x[1:n, ])
+setMethod("dim", "H5DataContainer", function(x) if (length(x@dims) < 2) NULL else x@dims)
+setMethod("length", "H5DataContainer", function(x) if (is.null(dim(x))) x@dims else prod(x@dims))
+setMethod("nrow", "H5DataContainer", function(x) x@dims[1])
+setMethod("ncol", "H5DataContainer", function(x) x@dims[2])
