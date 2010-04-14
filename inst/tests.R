@@ -23,5 +23,15 @@ dim(c <- getH5Attribute(d2, "z"))
 ## > 2 dimensional data.
 d3 <- getH5Dataset(g, "ds_3")
 
+## 2 dimensional string dataset.
 d4 <- getH5Dataset(g, "ds_4")
 d4[,]
+
+## instanteate a lot of objects, see if memory remains
+## fixed while making new objects.
+a <- replicate(100, {
+  x <- replicate(100, getH5Dataset(g, "ds_4"))[1,1]
+  b <- gc()[,1]
+  rm(x)
+  b - gc()[,1]
+})
