@@ -94,9 +94,21 @@ setMethod("initialize", "H5File", function(.Object, fileName, ...) {
 
 .initH5DataContainer <- function(o, name) {
   o@name   <- name
-  o@dims   <- getH5Dim(o)
   o@h5Type <- getH5Type(o)
 
+  d <- getH5Dim(o)
+
+  ## I can preserve the dimensions on 2-d objects, but on
+  ## >= 3 I reverse them. This is necessary because of the
+  ## different ways of storing.
+  if (length(d) == 2)
+    o@dims <- d
+  else if (length(d) > 2)
+    o@dims <- rev(d)
+  else
+    o@dims <- d ## I store the length of the vector here, note that in
+                ## dim I take this into account.
+  
   ## This caches the data. At some point, we'll want to
   ## move away from this and just grab things from disk
   ## and provide a mechanism to cache.
@@ -117,7 +129,7 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   return(.initH5DataContainer(o, attrName))
 })
 
-setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
+setMethod("[", "H5DataContainer", function(x, i, j, ..., drop = FALSE) {
   if (!.hasData(x)) {
     .putData(x, .loadDataset(x))
   }
@@ -147,16 +159,20 @@ setMethod("readDataAsVector", "H5Attribute", function(h5Obj) {
 
 .loadDataset <- function(h5Dataset) {
   d <- readDataAsVector(h5Dataset)
-  
-  if (length(dim(h5Dataset)) == 2) {
-    ## I do this because of the column-wise packing of
-    ## matrices in R.
-    dim(d) <- rev(dim(h5Dataset))
-    return(t(d))
-  }
+
+  if (is.null(dim(h5Dataset)))
+    return(d)
   else {
     dim(d) <- dim(h5Dataset)
-    return(d)
+    
+    if (length(dim(h5Dataset)) == 2) {
+      ## Again, for the common case of 2-d I preserve the dimensions
+      ## as defined in the h5 file, but in higher dimensions they must
+      ## be reversed.
+      return(t(d))
+    } else {
+      return(d)
+    }
   }
 }
 
