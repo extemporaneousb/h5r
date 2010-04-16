@@ -162,17 +162,15 @@ setMethod("readDataAsVector", "H5Attribute", function(h5Obj) {
 
   if (is.null(dim(h5Dataset)))
     return(d)
-  else {
+  else if (length(dim(h5Dataset)) == 2) {
+    dim(d) <- rev(dim(h5Dataset))
+    ## Again, for the common case of 2-d I preserve the dimensions
+    ## as defined in the h5 file, but in higher dimensions they must
+    ## be reversed.
+    return(t(d))
+  } else {
     dim(d) <- dim(h5Dataset)
-    
-    if (length(dim(h5Dataset)) == 2) {
-      ## Again, for the common case of 2-d I preserve the dimensions
-      ## as defined in the h5 file, but in higher dimensions they must
-      ## be reversed.
-      return(t(d))
-    } else {
-      return(d)
-    }
+    return(d)
   }
 }
 
