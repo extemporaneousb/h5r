@@ -178,17 +178,17 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     void* buf; 
 
     switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
-    case H5T_INTEGER : 
+    case H5T_INTEGER: 
 	PROTECT(dta = allocVector(INTSXP, _h5R_get_nelts(h5_dataset)));
 	memtype = H5T_NATIVE_INT;
 	buf = INTEGER(dta);
 	break;
-    case H5T_FLOAT :
+    case H5T_FLOAT:
 	PROTECT(dta = allocVector(REALSXP, _h5R_get_nelts(h5_dataset)));
 	memtype = H5T_NATIVE_DOUBLE;
 	buf = REAL(dta);
 	break;
-    case H5T_STRING :
+    case H5T_STRING:
 	return _h5R_read_vlen_str(h5_dataset);
     default:
 	error("Unsupported class in h5R_read_dataset.");
@@ -198,6 +198,50 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
 
     return(dta);
 }
+
+SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts, SEXP _orank) {
+    SEXP dta = R_NilValue;
+    hid_t space, memspace;
+    int ndims, i; 
+
+    int* offsets = INTEGER(_offsets);
+    int* counts  = INTEGER(_counts);
+    int* orank   = INTEGER(_orank);  
+   
+    hsize_t sel[] = {0, 0};
+   
+    int v = 1;
+    for (i = 0; i < length(_orank); i++) {
+	v *= orank[i];
+    }
+
+    switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
+    case H5T_INTEGER: 
+	Rprintf("In H5T_INTEGER with v = %d\n", v);
+
+	space = _h5R_get_space(h5_dataset);
+	H5Sselect_hyperslab(space, H5S_SELECT_SET, (hsize_t*) offsets, NULL, NULL, (hsize_t*) counts);
+
+	/* memspace = H5Screate_simple(length(_orank), (hsize_t*) orank, NULL); */
+	/* H5Sselect_hyperslab(memspace, H5S_SELECT_SET, sel, NULL,  (hsize_t*) counts, NULL); */
+
+	PROTECT(dta = allocVector(INTSXP, v));
+	Rprintf("About to read dataset, v = %d\n", v);
+	Rprintf("offset: %d, %d\n", offsets[0], offsets[1]);
+	Rprintf("counts: %d, %d\n", counts[0], counts[1]);
+
+	H5Dread(HID(h5_dataset), H5T_NATIVE_INT, H5S_ALL, space, H5P_DEFAULT, (void *) INTEGER(dta));
+	break;
+    default:
+	error("Unsupported class in %s\n", __func__);
+	
+    }
+
+    UNPROTECT(1);
+
+    return dta;
+}
+
   
 /** 
  * I am currently keeping read_attr and read_dataset separate because

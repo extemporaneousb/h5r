@@ -23,6 +23,8 @@ g.create_dataset("ds_3", data = a, maxshape = (None, None, None))
 
 g.create_dataset("ds_4", data = s.reshape((2, 10)))
 
+g.create_dataset("ds_5", data = a.reshape(21, 9))
+
 f.close()
 
 f = h5py.File("ex_1.h5")
