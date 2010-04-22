@@ -25,8 +25,28 @@ g.create_dataset("ds_4", data = s.reshape((2, 10)))
 
 g.create_dataset("ds_5", data = a.reshape(21, 9))
 
+
+g.create_dataset("ds_6", data = random.randint(0, int(1e4), int(1e5)), dtype = "uint32")
+
+
 f.close()
 
+##
+## some reading and testing.
+##
 f = h5py.File("ex_1.h5")
-f['group_1']['ds_2'].attrs['z']
+g = f["group_1"]
+d = g["ds_6"]
 
+import time
+
+s = time.time()
+k = 100000
+n = 100
+
+for i in xrange(0, n):
+    b    = random.randint(0, d.shape[0] - k)
+    e    = b + k
+    print len(d[b:e])
+
+print "total time %d" % int(time.time() - s)

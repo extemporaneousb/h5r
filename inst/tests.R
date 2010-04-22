@@ -9,9 +9,6 @@ files <- list.files("h5_files", full.names = TRUE)
 f <- H5File(files[1])
 g <- getH5Group(f, "group_1")
 
-dint <- getH5Dataset(g, "ds_5")
-.Call("h5R_read_slab", dint@ePtr, as.integer(c(0,0)), as.integer(c(5,5)), as.integer(c(5,5)))
-
 d <- getH5Dataset(g, "ds_1")
 d[1:10, 1:10]
 d[1:10,]

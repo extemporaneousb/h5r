@@ -11,9 +11,11 @@ setClass("H5Obj", representation(ePtr = "externalptr"))
 setClass("H5File", contains = "H5Obj", representation(fileName = "character"))
 setClass("H5Group", contains = "H5Obj", representation(name = "character"))
 
+
+setClassUnion("envOrNULL", c("environment", "NULL"))
 setClass("H5DataContainer", contains = "H5Obj",
          representation(name = "character", dims = "integer",
-                        h5Type = "integer", .data = "environment"))
+                        h5Type = "integer", .data = "envOrNULL"))
 setClass("H5Dataset", contains = "H5DataContainer")
 setClass("H5Attribute", contains = "H5DataContainer")
 
@@ -46,6 +48,10 @@ H5File <- function(fileName) {
 
 .getData <- function(h5DataContainer) {
   get(".data", h5DataContainer@.data)
+}
+
+.inMemory <- function(h5Dataset) {
+  return(! is.null(h5Dataset@.data))
 }
 
 setGeneric("getH5Group", function(h5Obj, groupName, ...) {
@@ -86,13 +92,13 @@ setMethod("initialize", "H5File", function(.Object, fileName, ...) {
   ## call this on *class* instanteation time. 
   if (missing(fileName))
     return(.Object)
-
+  
   .Object@ePtr <- .Call("h5R_open", fileName, package = "h5R")
   .Object@fileName <- fileName
   return(.Object)
 })
 
-.initH5DataContainer <- function(o, name) {
+.initH5DataContainer <- function(o, name, inMemory = TRUE) {
   o@name   <- name
   o@h5Type <- getH5Type(o)
 
@@ -108,19 +114,22 @@ setMethod("initialize", "H5File", function(.Object, fileName, ...) {
   else
     o@dims <- d ## I store the length of the vector here, note that in
                 ## dim I take this into account.
-  
+
   ## This caches the data. At some point, we'll want to
   ## move away from this and just grab things from disk
   ## and provide a mechanism to cache.
-  o@.data <- new.env(parent = emptyenv(), hash = TRUE)
-
+  if (! inMemory) {
+    o@.data <- NULL
+  } else {
+    o@.data <- new.env(parent = emptyenv(), hash = TRUE)
+  }
   return(o)
 }
 
-setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName) {
+setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName, inMemory = FALSE) {
   o <- new("H5Dataset")
   o@ePtr <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5r')
-  return(.initH5DataContainer(o, datasetName))
+  return(.initH5DataContainer(o, datasetName, inMemory))
 })
 
 setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
@@ -129,7 +138,8 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   return(.initH5DataContainer(o, attrName))
 })
 
-setMethod("[", "H5DataContainer", function(x, i, j, ..., drop = FALSE) {
+
+.internalSlice <- function(x, i, j, ..., drop = TRUE) {
   if (!.hasData(x)) {
     .putData(x, .loadDataset(x))
   }
@@ -141,9 +151,80 @@ setMethod("[", "H5DataContainer", function(x, i, j, ..., drop = FALSE) {
     d[i]
   }
   else {
-    drop(d[i, j, ..., drop = drop])
+    d[i, j, ..., drop = drop]
+  }
+}
+
+setMethod("[", "H5DataContainer", .internalSlice)
+setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
+  if (.inMemory(x)) {
+    callNextMethod()
+  }
+
+  ##
+  ## Currently, This supports only a limited range of slicing.
+  ## contiguous chunks
+  ##  
+  else {
+    if (is.null(dim(x))) {
+      if (! missing(j))
+        stop("incorrect number of dimensions")
+      if (! missing(i))
+        dta <- readSlab(x, min(i), max(i) - min(i) + 1)
+      else
+        dta <- readSlab(x, 1, length(x))
+    }
+    else {
+      ## need to specify the dim(x) offset, dim.
+      sel <- matrix(NA, nrow = length(dim(x)), ncol = 2)
+      if (! missing(i))
+        sel[1, ] <- range(i)
+      else
+        sel[1, ] <- c(1, dim(x)[1])
+
+      if (! missing(j))
+        sel[2, ] <- range(j)
+      else
+        sel[2, ] <- c(1, dim(x)[2])
+
+      ##
+      ## Not quite sure why this results in a strange state
+      ## of both missing and !missing(.)
+      ##
+      l <- tryCatch(list(...), simpleError = function(e) {
+        return(list())
+      })
+      if (nrow(sel) > 2) {
+        for (k in 3:nrow(sel)) {
+          if (length(l) >= k) 
+            sel[k, ] <- range(l[[k]])
+          else
+            sel[k, ] <- c(1, dim(x)[k])
+        }
+      }
+
+      ext <- sel[,2] - sel[,1] + 1
+
+      if (nrow(sel) == 2) {
+        dta <- readSlab(x, sel[,1], ext)
+        dta <- matrix(dta, nrow = ext[1], ncol = ext[2], byrow = TRUE)
+        dta <- if (drop) drop(dta) else dta
+      } else {
+        dta <- readSlab(x, rev(sel[,1]), rev(ext))
+        dim(dta) <- rev(ext)
+      }
+    }
+    return(dta)
   }
 })
+
+
+readSlab <- function(h5Dataset, offsets, dims) {
+###   stopifnot(length(offsets) == length(dims))
+###   stopifnot(all((offsets + dims - 1) <=
+###                 (if (is.null(dim(h5Dataset))) length(h5Dataset) else dim(h5Dataset))))
+  .Call("h5R_read_slab", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
+}
 
 setGeneric("readDataAsVector", function(h5Obj, ...) {
   standardGeneric("readDataAsVector")

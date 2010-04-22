@@ -199,46 +199,55 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     return(dta);
 }
 
-SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts, SEXP _orank) {
+SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     SEXP dta = R_NilValue;
-    hid_t space, memspace;
-    int ndims, i; 
+    hid_t space, memspace, memtype;
+    void* buf; 
+    int i; 
 
-    int* offsets = INTEGER(_offsets);
-    int* counts  = INTEGER(_counts);
-    int* orank   = INTEGER(_orank);  
-   
-    hsize_t sel[] = {0, 0};
-   
+    int* offsets  = INTEGER(_offsets);
+    int* counts   = INTEGER(_counts);
+
+    /** I'm surprised I have to do this, but it seems to be necessary. **/
+    hsize_t* _h_offsets = (hsize_t*) Calloc(length(_counts), hsize_t);
+    hsize_t* _h_counts  = (hsize_t*) Calloc(length(_counts), hsize_t);
+    
     int v = 1;
-    for (i = 0; i < length(_orank); i++) {
-	v *= orank[i];
+    for (i = 0; i < length(_counts); i++) {
+    	v *= counts[i];
+	_h_offsets[i] = offsets[i];
+	_h_counts[i]  = counts[i];
     }
 
     switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
     case H5T_INTEGER: 
-	Rprintf("In H5T_INTEGER with v = %d\n", v);
-
-	space = _h5R_get_space(h5_dataset);
-	H5Sselect_hyperslab(space, H5S_SELECT_SET, (hsize_t*) offsets, NULL, NULL, (hsize_t*) counts);
-
-	/* memspace = H5Screate_simple(length(_orank), (hsize_t*) orank, NULL); */
-	/* H5Sselect_hyperslab(memspace, H5S_SELECT_SET, sel, NULL,  (hsize_t*) counts, NULL); */
-
 	PROTECT(dta = allocVector(INTSXP, v));
-	Rprintf("About to read dataset, v = %d\n", v);
-	Rprintf("offset: %d, %d\n", offsets[0], offsets[1]);
-	Rprintf("counts: %d, %d\n", counts[0], counts[1]);
-
-	H5Dread(HID(h5_dataset), H5T_NATIVE_INT, H5S_ALL, space, H5P_DEFAULT, (void *) INTEGER(dta));
+	memtype = H5T_NATIVE_INT;
+	buf = INTEGER(dta);
 	break;
+    case H5T_FLOAT:
+	PROTECT(dta = allocVector(REALSXP, v));
+	memtype = H5T_NATIVE_DOUBLE;
+	buf = REAL(dta);
+	break;
+    case H5T_STRING:
+	error("String slab selection not yet supported.\n");
     default:
 	error("Unsupported class in %s\n", __func__);
-	
     }
+    
+    space = _h5R_get_space(h5_dataset);
+    H5Sselect_hyperslab(space, H5S_SELECT_SET, _h_offsets, NULL, _h_counts, NULL);
+    memspace = H5Screate_simple(length(_counts), _h_counts, NULL);
+    H5Dread(HID(h5_dataset), memtype, memspace, space, 
+	    H5P_DEFAULT, buf);
 
+    /** clean up. **/
+    Free(_h_offsets);
+    Free(_h_counts);
+    H5Sclose(memspace);
     UNPROTECT(1);
-
+    
     return dta;
 }
 
