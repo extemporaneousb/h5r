@@ -98,7 +98,7 @@ setMethod("initialize", "H5File", function(.Object, fileName, ...) {
   return(.Object)
 })
 
-.initH5DataContainer <- function(o, name, inMemory = TRUE) {
+.initH5DataContainer <- function(o, name, inMemory) {
   o@name <- name
   o@h5Type <- getH5Type(o)
   o@dims <- getH5Dim(o)
@@ -112,7 +112,7 @@ setMethod("initialize", "H5File", function(.Object, fileName, ...) {
   return(o)
 }
 
-setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName, inMemory = FALSE) {
+setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName, inMemory = TRUE) {
   o <- new("H5Dataset")
   o@ePtr <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5r')
   return(.initH5DataContainer(o, datasetName, inMemory))
@@ -121,7 +121,7 @@ setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName, 
 setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   o <- new("H5Attribute")
   o@ePtr <- .Call("h5R_get_attr", .ePtr(h5Obj), attrName, PACKAGE = 'h5r')
-  return(.initH5DataContainer(o, attrName))
+  return(.initH5DataContainer(o, attrName, inMemory = TRUE))
 })
 
 .internalSlice <- function(x, i, j, ..., drop = TRUE) {
