@@ -30,14 +30,20 @@ all(dim(d3[,,]) == dim(d3))
 id3 <- d3@.data$.data
 
 all(id3[,,] == d3[,,])
-all(id3[,1,] == d3[,1,])
+all(id3[,1,,drop=TRUE] == d3[,1,,drop=TRUE])
+all(id3[1,1,,drop=TRUE] == d3[1,1,,drop=TRUE])
+all(id3[1,,3,drop=TRUE] == d3[1,,3,drop=TRUE])
 
 
 d3M <- getH5Dataset(g, "ds_3", inMemory = F)
 all(d3M[,,] == d3[,,])
 
-d3M[,,]
+all(id3[,1,,drop=TRUE] == d3M[,1,,drop=TRUE])
+all(id3[3,1,,drop=TRUE] == d3M[3,1,,drop=TRUE])
+all(id3[,1,,drop=FALSE] == d3M[,1,,drop=FALSE])
 
+all(id3[,1,1,drop=TRUE] == d3M[,1,1,drop=TRUE])
+all(id3[,1,1:2] == d3M[,1,1:2])
 
 ## 2 dimensional string dataset.
 d4 <- getH5Dataset(g, "ds_4", inMemory = T)

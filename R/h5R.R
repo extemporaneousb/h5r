@@ -141,8 +141,11 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
 }
 
 setMethod("[", "H5DataContainer", .internalSlice)
-setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
+setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
   if (.inMemory(x)) {
+    ## this is a copy of internal slice, if I don't do it this way
+    ## then ... doesn't really stay consistent and I cannot pass it
+    ## through to the '[' built-in.
     if (!.hasData(x)) {
       .putData(x, .loadDataset(x))
     }
@@ -183,17 +186,17 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
       else
         sel[2, ] <- c(1, dim(x)[2])
 
-      ##
-      ## Not quite sure why this results in a strange state
-      ## of both missing and !missing(.)
-      ##
-      l <- tryCatch(list(...), simpleError = function(e) {
-        return(list())
-      })
       if (nrow(sel) > 2) {
+        ##
+        ## Not quite sure why this results in a strange state
+        ## of both missing and !missing(.)
+        ##
+        l <- tryCatch(list(...), simpleError = function(e) {
+          return(list())
+        })
         for (k in 3:nrow(sel)) {
-          if (length(l) >= k) 
-            sel[k, ] <- range(l[[k]])
+          if (length(l) >= k - 2)
+            sel[k, ] <- range(l[[k - 2]]) # the offset into the list.
           else
             sel[k, ] <- c(1, dim(x)[k])
         }
@@ -201,8 +204,8 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
 
       ext <- sel[,2] - sel[,1] + 1
       dta <- readSlab(x, sel[,1], ext)
-    }
-    return(dta)
+     }
+    if (drop) drop(dta) else dta
   }
 })
 
@@ -218,6 +221,9 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
 }
 
 readSlab <- function(h5Dataset, offsets, dims) {
+  if (! all((offsets + dims - 1) <= dim(h5Dataset)))
+    stop("error invalid slice specification in readSlab.")
+  
   d <- .Call("h5R_read_slab", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
   dim(d) <- rev(dims)
   .myperm(d)
