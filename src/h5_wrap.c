@@ -193,7 +193,8 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     default:
 	error("Unsupported class in h5R_read_dataset.");
     }
-    H5Dread(HID(h5_dataset), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
+
+    H5Dread(HID(h5_dataset), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf); 
     UNPROTECT(1);
 
     return(dta);
@@ -286,3 +287,24 @@ SEXP h5R_read_attr(SEXP h5_attr) {
 
     return dta;
 }
+
+
+    /* int rank  = _h5R_get_ndims(h5_dataset); */
+    /* hsize_t* dims = Calloc(rank, hsize_t); */
+    /* hsize_t* odims = Calloc(rank, hsize_t); */
+
+    /* hid_t space    = _h5R_get_space(h5_dataset); */
+
+    /* H5Sget_simple_extent_dims(space, odims, NULL); */
+
+    /* int i; */
+    /* for (i = 0; i < rank; i++) { */
+    /* 	dims[rank - i - 1] = odims[i]; */
+    /* } */
+
+    /* hsize_t mmm[2] = {H5S_UNLIMITED, H5S_UNLIMITED}; */
+
+    /* hid_t memspace = H5Screate_simple(rank, dims, mmm); */
+   
+    /* for (i = 0; i < rank; i++)  */
+    /* 	Rprintf("original: %d, reversed: %d \n", odims[i], dims[i]); */

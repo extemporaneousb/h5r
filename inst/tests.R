@@ -9,13 +9,14 @@ files <- list.files("h5_files", full.names = TRUE)
 f <- H5File(files[1])
 g <- getH5Group(f, "group_1")
 
-d <- getH5Dataset(g, "ds_1")
+d <- getH5Dataset(g, "ds_1", inMemory = T)
+
 d[1:10, 1:10]
 d[1:10,]
 d[,1]
 
 ## string dataset
-d2 <- getH5Dataset(g, "ds_2")
+d2 <- getH5Dataset(g, "ds_2", inMemory = T)
 d2[1:10]
 
 ## attributes
@@ -24,10 +25,22 @@ dim(b <- getH5Attribute(d2, "y"))
 dim(c <- getH5Attribute(d2, "z"))
 
 ## > 2 dimensional data.
-d3 <- getH5Dataset(g, "ds_3")
+d3 <- getH5Dataset(g, "ds_3", inMemory = T)
+all(dim(d3[,,]) == dim(d3))
+id3 <- d3@.data$.data
+
+all(id3[,,] == d3[,,])
+all(id3[,1,] == d3[,1,])
+
+
+d3M <- getH5Dataset(g, "ds_3", inMemory = F)
+all(d3M[,,] == d3[,,])
+
+d3M[,,]
+
 
 ## 2 dimensional string dataset.
-d4 <- getH5Dataset(g, "ds_4")
+d4 <- getH5Dataset(g, "ds_4", inMemory = T)
 d4[,]
 
 ## instanteate a lot of objects, see if memory remains

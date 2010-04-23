@@ -99,30 +99,16 @@ setMethod("initialize", "H5File", function(.Object, fileName, ...) {
 })
 
 .initH5DataContainer <- function(o, name, inMemory = TRUE) {
-  o@name   <- name
+  o@name <- name
   o@h5Type <- getH5Type(o)
-
-  d <- getH5Dim(o)
-
-  ## I can preserve the dimensions on 2-d objects, but on
-  ## >= 3 I reverse them. This is necessary because of the
-  ## different ways of storing.
-  if (length(d) == 2)
-    o@dims <- d
-  else if (length(d) > 2)
-    o@dims <- rev(d)
-  else
-    o@dims <- d ## I store the length of the vector here, note that in
-                ## dim I take this into account.
-
-  ## This caches the data. At some point, we'll want to
-  ## move away from this and just grab things from disk
-  ## and provide a mechanism to cache.
+  o@dims <- getH5Dim(o)
+  
   if (! inMemory) {
     o@.data <- NULL
   } else {
     o@.data <- new.env(parent = emptyenv(), hash = TRUE)
   }
+  
   return(o)
 }
 
@@ -137,7 +123,6 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   o@ePtr <- .Call("h5R_get_attr", .ePtr(h5Obj), attrName, PACKAGE = 'h5r')
   return(.initH5DataContainer(o, attrName))
 })
-
 
 .internalSlice <- function(x, i, j, ..., drop = TRUE) {
   if (!.hasData(x)) {
@@ -156,16 +141,27 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
 }
 
 setMethod("[", "H5DataContainer", .internalSlice)
-setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
+setMethod("[", "H5Dataset", function(x, i, j, ..., drop = FALSE) {
   if (.inMemory(x)) {
-    callNextMethod()
+    if (!.hasData(x)) {
+      .putData(x, .loadDataset(x))
+    }
+    d <- .getData(x)
+    
+    if (is.null(dim(x))) {
+      if (! missing(j))
+        stop("incorrect number of dimensions")
+      d[i]
+    }
+    else {
+      d[i, j, ..., drop = drop]
+    }
   }
-
-  ##
-  ## Currently, This supports only a limited range of slicing.
-  ## contiguous chunks
-  ##  
   else {
+    ##
+    ## Currently, This supports only a limited range of slicing.
+    ## contiguous chunks
+    ##  
     if (is.null(dim(x))) {
       if (! missing(j))
         stop("incorrect number of dimensions")
@@ -204,26 +200,27 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
       }
 
       ext <- sel[,2] - sel[,1] + 1
-
-      if (nrow(sel) == 2) {
-        dta <- readSlab(x, sel[,1], ext)
-        dta <- matrix(dta, nrow = ext[1], ncol = ext[2], byrow = TRUE)
-        dta <- if (drop) drop(dta) else dta
-      } else {
-        dta <- readSlab(x, rev(sel[,1]), rev(ext))
-        dim(dta) <- rev(ext)
-      }
+      dta <- readSlab(x, sel[,1], ext)
     }
     return(dta)
   }
 })
 
+##
+## Note: the two reverses.
+##
+.myperm <- function(d) if (!is.null(dim(d))) aperm(d) else d
+
+.loadDataset <- function(h5Dataset) {
+  d <- readDataAsVector(h5Dataset)
+  dim(d) <- rev(dim(h5Dataset))
+  .myperm(d)
+}
 
 readSlab <- function(h5Dataset, offsets, dims) {
-###   stopifnot(length(offsets) == length(dims))
-###   stopifnot(all((offsets + dims - 1) <=
-###                 (if (is.null(dim(h5Dataset))) length(h5Dataset) else dim(h5Dataset))))
-  .Call("h5R_read_slab", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
+  d <- .Call("h5R_read_slab", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
+  dim(d) <- rev(dims)
+  .myperm(d)
 }
 
 setGeneric("readDataAsVector", function(h5Obj, ...) {
@@ -237,23 +234,6 @@ setMethod("readDataAsVector", "H5Dataset", function(h5Obj) {
 setMethod("readDataAsVector", "H5Attribute", function(h5Obj) {
   .Call('h5R_read_attr', .ePtr(h5Obj), PACKAGE = 'h5r')
 })
-
-.loadDataset <- function(h5Dataset) {
-  d <- readDataAsVector(h5Dataset)
-
-  if (is.null(dim(h5Dataset)))
-    return(d)
-  else if (length(dim(h5Dataset)) == 2) {
-    dim(d) <- rev(dim(h5Dataset))
-    ## Again, for the common case of 2-d I preserve the dimensions
-    ## as defined in the h5 file, but in higher dimensions they must
-    ## be reversed.
-    return(t(d))
-  } else {
-    dim(d) <- dim(h5Dataset)
-    return(d)
-  }
-}
 
 setMethod("show", "H5Obj", function(object) {
   cat("class of:", class(object), "\n")
