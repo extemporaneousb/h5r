@@ -87,7 +87,7 @@ setMethod("getH5Type", "H5DataContainer", function(h5Obj) {
   .Call("h5R_get_type", .ePtr(h5Obj), PACKAGE = 'h5r')
 })
 
-setMethod("initialize", "H5File", function(.Object, fileName, ...) {
+setMethod("initialize", c("H5File"), function(.Object, fileName) {
   ## This is obscene. I have to do this because somehow Subclasses
   ## call this on *class* instanteation time. 
   if (missing(fileName))
