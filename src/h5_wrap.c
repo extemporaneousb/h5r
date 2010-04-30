@@ -206,13 +206,17 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     /** I'm surprised I have to do this, but it seems to be necessary. **/
     hsize_t* _h_offsets = (hsize_t*) Calloc(length(_counts), hsize_t);
     hsize_t* _h_counts  = (hsize_t*) Calloc(length(_counts), hsize_t);
-    
+
     int v = 1;
     for (i = 0; i < length(_counts); i++) {
     	v *= counts[i];
 	_h_offsets[i] = offsets[i];
 	_h_counts[i]  = counts[i];
     }
+
+    space = _h5R_get_space(h5_dataset);
+    H5Sselect_hyperslab(space, H5S_SELECT_SET, _h_offsets, NULL, _h_counts, NULL);
+    memspace = H5Screate_simple(length(_counts), _h_counts, NULL);
 
     switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
     case H5T_INTEGER: 
@@ -226,16 +230,30 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 	buf = REAL(dta);
 	break;
     case H5T_STRING:
-	error("String slab selection not yet supported.\n");
+	buf = (char **) Calloc(v, char*);
+	memtype = H5Tcopy (H5T_C_S1);
+	H5Tset_size (memtype, H5T_VARIABLE);   
+	break;
     default:
 	error("Unsupported class in %s\n", __func__);
     }
     
-    space = _h5R_get_space(h5_dataset);
-    H5Sselect_hyperslab(space, H5S_SELECT_SET, _h_offsets, NULL, _h_counts, NULL);
-    memspace = H5Screate_simple(length(_counts), _h_counts, NULL);
-    H5Dread(HID(h5_dataset), memtype, memspace, space, 
-	    H5P_DEFAULT, buf);
+    H5Dread(HID(h5_dataset), memtype, memspace, space, H5P_DEFAULT, buf);
+
+    /** There requires a little more with strings. **/
+    if (H5T_STRING == INTEGER(h5R_get_type(h5_dataset))[0]) {
+	PROTECT(dta = allocVector(STRSXP, v));
+	for (i = 0; i < v; i++)
+	    if (((char **) buf)[i]) {
+		SET_STRING_ELT(dta, i, mkChar(  ((char **) buf)[i] )); 
+	    }
+
+	H5Dvlen_reclaim (memtype, memspace, H5P_DEFAULT, buf);
+	
+	H5Tclose(memtype);
+	Free(buf);
+    }
+
 
     /** clean up. **/
     Free(_h_offsets);

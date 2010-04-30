@@ -54,3 +54,18 @@ d3[1,,]
 d3[1,1,1]
 d3[1,,]
 d3[,,1]
+
+
+dStr <- getH5Dataset(g, "ds_2", inMemory = FALSE)
+dStrM <- getH5Dataset(g, "ds_2", inMemory = TRUE)
+all(dStr[1:2] == dStrM[1:2])
+all(dStr[1:2] == dStrM[1:2])
+
+
+dStr <- getH5Dataset(g, "ds_4", inMemory = FALSE)
+dStrM <- getH5Dataset(g, "ds_4", inMemory = TRUE)
+all(dStr[1:2,] == dStrM[1:2,])
+all(dStr[,1:2] == dStrM[,1:2])
+
+x = replicate(1000000, dStr[,1:5])
+
