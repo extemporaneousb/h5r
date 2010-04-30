@@ -1,14 +1,8 @@
 /**
  * R/C Interface code for HDF5 file format. 
  *
- * 
- * 13/04/2010 (JHB) : more refactoring. added finalizer
- *
- * 10/04/2010 (JHB) : refactored interface to hide most of the type 
- *                    determination in C.
  */
 #include <hdf5.h>
-#include <hdf5_hl.h>
 #include <Rinternals.h>    
 #include <R.h>
 
@@ -59,8 +53,8 @@ SEXP h5R_get_attr(SEXP h5_obj, SEXP attr_name) {
 }
 
 SEXP h5R_get_type(SEXP h5_obj) {
-    SEXP dtype;
-    hid_t cls_id;
+    SEXP dtype = R_NilValue;
+    hid_t cls_id = -1;
 
     switch (H5Iget_type(HID(h5_obj))) {
     case H5I_DATASET:
@@ -81,7 +75,7 @@ SEXP h5R_get_type(SEXP h5_obj) {
 }
 
 hid_t _h5R_get_space(SEXP h5_obj) {
-    hid_t space;
+    hid_t space = -1;
 
     switch (H5Iget_type(HID(h5_obj))) {
     case H5I_DATASET:
@@ -93,6 +87,7 @@ hid_t _h5R_get_space(SEXP h5_obj) {
     default:
 	error("Unknown object in _h5R_get_space.");
     }
+    return space;
 }
 
 int _h5R_get_ndims(SEXP h5_obj) {
@@ -141,7 +136,6 @@ SEXP _h5R_read_vlen_str(SEXP h5_obj) {
     int i;
 
     SEXP res  = R_NilValue;
-    int ndims = _h5R_get_ndims(h5_obj);
     int nelts = _h5R_get_nelts(h5_obj);
 
     char** rdata  = (char **) Calloc(nelts, char*);
@@ -156,7 +150,7 @@ SEXP _h5R_read_vlen_str(SEXP h5_obj) {
 	H5Aread(HID(h5_obj), memtype, rdata);
 	break;
     default:
-	error("Unkown object in _h5R_read_vlen_str");
+	error("Unsupported class in %s.\n", __func__);
     }
     
     PROTECT(res = allocVector(STRSXP, nelts));
@@ -173,9 +167,9 @@ SEXP _h5R_read_vlen_str(SEXP h5_obj) {
 }
 
 SEXP h5R_read_dataset(SEXP h5_dataset) {
-    SEXP dta;
-    hid_t memtype;
-    void* buf; 
+    SEXP dta = R_NilValue;
+    hid_t memtype = -1;
+    void* buf = NULL; 
 
     switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
     case H5T_INTEGER: 
@@ -191,7 +185,7 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     case H5T_STRING:
 	return _h5R_read_vlen_str(h5_dataset);
     default:
-	error("Unsupported class in h5R_read_dataset.");
+	error("Unsupported class in %s.\n", __func__);
     }
 
     H5Dread(HID(h5_dataset), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf); 
@@ -202,8 +196,8 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
 
 SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     SEXP dta = R_NilValue;
-    hid_t space, memspace, memtype;
-    void* buf; 
+    hid_t space = -1, memspace = -1, memtype = -1;
+    void* buf = NULL; 
     int i; 
 
     int* offsets  = INTEGER(_offsets);
@@ -247,6 +241,8 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     Free(_h_offsets);
     Free(_h_counts);
     H5Sclose(memspace);
+    H5Sclose(space);
+
     UNPROTECT(1);
     
     return dta;
@@ -259,11 +255,9 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
  * complicated things like hyperslab selection.
  */
 SEXP h5R_read_attr(SEXP h5_attr) {
-    int up = 0;
-
-    SEXP dta;
-    hid_t memtype;
-    void* buf; 
+    SEXP dta = R_NilValue;
+    hid_t memtype = -1;
+    void* buf = NULL; 
 
     switch (INTEGER(h5R_get_type(h5_attr))[0]) {
     case H5T_INTEGER:
@@ -279,7 +273,7 @@ SEXP h5R_read_attr(SEXP h5_attr) {
     case H5T_STRING:
 	return _h5R_read_vlen_str(h5_attr);
     default:
-	error("Unsupported class in h5R_read_attr.");
+	error("Unsupported class in %s.\n", __func__);
     }
 
     H5Aread(HID(h5_attr), memtype, buf);
@@ -289,22 +283,4 @@ SEXP h5R_read_attr(SEXP h5_attr) {
 }
 
 
-    /* int rank  = _h5R_get_ndims(h5_dataset); */
-    /* hsize_t* dims = Calloc(rank, hsize_t); */
-    /* hsize_t* odims = Calloc(rank, hsize_t); */
-
-    /* hid_t space    = _h5R_get_space(h5_dataset); */
-
-    /* H5Sget_simple_extent_dims(space, odims, NULL); */
-
-    /* int i; */
-    /* for (i = 0; i < rank; i++) { */
-    /* 	dims[rank - i - 1] = odims[i]; */
-    /* } */
-
-    /* hsize_t mmm[2] = {H5S_UNLIMITED, H5S_UNLIMITED}; */
-
-    /* hid_t memspace = H5Screate_simple(rank, dims, mmm); */
    
-    /* for (i = 0; i < rank; i++)  */
-    /* 	Rprintf("original: %d, reversed: %d \n", odims[i], dims[i]); */

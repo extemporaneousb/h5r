@@ -19,10 +19,11 @@
 \alias{getH5Type}
 \alias{nrow,H5DataContainer-method}
 \alias{ncol,H5DataContainer-method}
-\alias{[,H5DataContainer,ANY,ANY,ANY-method}
-\alias{[,H5DataContainer,ANY,missing,missing-method}
+\alias{[,H5DataContainer-method}
+\alias{[,H5Dataset-method}
 \alias{dim,H5DataContainer-method}
 \alias{length,H5DataContainer-method}
+\alias{readSlab}
 
 \title{Class "H5Obj"}
 \description{Classes for objects originating from HDF5 files.}
