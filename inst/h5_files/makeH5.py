@@ -19,34 +19,14 @@ ds.attrs.create("z", s)
 
 a = random.randint(0, int(1e6), 3 * 7 * 9)
 a = a.reshape((3, 7, 9))
+
 g.create_dataset("ds_3", data = a, maxshape = (None, None, None))
-
 g.create_dataset("ds_4", data = s.reshape((2, 10)))
-
 g.create_dataset("ds_5", data = a.reshape(21, 9))
-
-
 g.create_dataset("ds_6", data = random.randint(0, int(1e4), int(1e5)), dtype = "uint32")
 
+a = random.rand(1000 * 10 * 5) * 10000
+a = a.reshape(1000, 10, 5)
+g.create_dataset("ds_7", data = a, maxshape = (None, None, None))
 
 f.close()
-
-##
-## some reading and testing.
-##
-f = h5py.File("ex_1.h5")
-g = f["group_1"]
-d = g["ds_6"]
-
-import time
-
-s = time.time()
-k = 100000
-n = 100
-
-for i in xrange(0, n):
-    b    = random.randint(0, d.shape[0] - k)
-    e    = b + k
-    print len(d[b:e])
-
-print "total time %d" % int(time.time() - s)
