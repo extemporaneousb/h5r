@@ -3,9 +3,15 @@
 ##
 import h5py
 from numpy import *
+import os
+
+FILE = "ex_1.h5"
+
+if (os.path.exists(FILE)):
+    os.remove(FILE)
 
 ## file 1
-f = h5py.File("ex_1.h5")
+f = h5py.File(FILE)
 g = f.create_group("group_1")
 m = array([ random.normal(1, 1, 1000) for i in xrange(0, 10) ]).reshape(1000, 10)
 d = g.create_dataset("ds_1", data = m, maxshape = (None, None))
@@ -28,5 +34,12 @@ g.create_dataset("ds_6", data = random.randint(0, int(1e4), int(1e5)), dtype = "
 a = random.rand(1000 * 10 * 5) * 10000
 a = a.reshape(1000, 10, 5)
 g.create_dataset("ds_7", data = a, maxshape = (None, None, None))
+
+## create some more intricate group structure.
+h = g.create_group("group_2")
+i = h.create_group("group_3")
+
+j = f.create_group("group_4")
+j.create_dataset("ds_1", data = a, maxshape = (None, None, None))
 
 f.close()

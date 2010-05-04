@@ -24,6 +24,8 @@
 \alias{dim,H5DataContainer-method}
 \alias{length,H5DataContainer-method}
 \alias{readSlab}
+\alias{listH5Contents}
+\alias{print.H5ContentList}
 
 \title{Class "H5Obj"}
 \description{Classes for objects originating from HDF5 files.}

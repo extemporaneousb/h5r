@@ -64,7 +64,7 @@ SEXP h5R_get_type(SEXP h5_obj) {
 	cls_id = H5Aget_type(HID(h5_obj));
 	break;
     default:
-	error("Unkown object in h5R_get_type.");
+	error("Unkown object in %s.\n", __func__);
     }
 
     PROTECT(dtype = ScalarInteger(H5Tget_class(cls_id)));
@@ -85,7 +85,7 @@ hid_t _h5R_get_space(SEXP h5_obj) {
 	space = H5Aget_space(HID(h5_obj));
 	break;
     default:
-	error("Unknown object in _h5R_get_space.");
+	error("Unknown object in %s.\n", __func__);
     }
     return space;
 }
@@ -254,7 +254,6 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 	Free(buf);
     }
 
-
     /** clean up. **/
     Free(_h_offsets);
     Free(_h_counts);
@@ -267,11 +266,6 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 }
 
   
-/** 
- * I am currently keeping read_attr and read_dataset separate because
- * I think that we'll want to separate them in the future to do more
- * complicated things like hyperslab selection.
- */
 SEXP h5R_read_attr(SEXP h5_attr) {
     SEXP dta = R_NilValue;
     hid_t memtype = -1;
@@ -300,5 +294,83 @@ SEXP h5R_read_attr(SEXP h5_attr) {
     return dta;
 }
 
+/**
+ * File content iteration.
+ */
+typedef struct __index_and_SEXP__ {
+    int  i;
+    SEXP s;
+} index_and_SEXP;
 
-   
+
+herr_t _h5R_count_func(hid_t loc_id, const char *name, const H5O_info_t *info,
+		       void *operator_data) {
+    int* counter = ((int *) operator_data);
+    (*counter)++;
+    
+    return 0;
+}
+
+herr_t _h5R_capture_name(hid_t loc_id, const char *name, const H5O_info_t *info,
+			 void *operator_data) {
+    index_and_SEXP* od = (index_and_SEXP*) operator_data;
+    SET_STRING_ELT(od->s, (od->i)++, mkChar(name));
+    
+    return 0;
+}
+
+herr_t _h5R_capture_name_and_type(hid_t loc_id, const char *name, const H5O_info_t *info,
+				  void *operator_data) {
+    index_and_SEXP* od = (index_and_SEXP*) operator_data;
+    SEXP lst, str;
+
+    PROTECT(lst = allocVector(VECSXP, 2));
+    PROTECT(str = allocVector(STRSXP, 1));
+    SET_STRING_ELT(str, 0, mkChar(name));
+    SET_VECTOR_ELT(lst, 0, str);
+    SET_VECTOR_ELT(lst, 1, ScalarInteger(info->type));
+    SET_VECTOR_ELT(od->s, (od->i)++, lst);
+
+    UNPROTECT(2);
+
+    return 0;
+}
+
+SEXP h5R_list_contents(SEXP h5_obj) {
+    int counter = 0; 
+    index_and_SEXP* isxp = (index_and_SEXP*) Calloc(1, index_and_SEXP);
+    SEXP dta;
+
+    H5Ovisit (HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, _h5R_count_func, (void*) &counter);
+
+    PROTECT(dta = allocVector(VECSXP, counter));
+    isxp->s = dta;
+    isxp->i = 0;
+    H5Ovisit (HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, _h5R_capture_name_and_type, (void*) isxp);
+
+    Free(isxp);
+    UNPROTECT(1);
+
+    return(dta);
+}
+
+SEXP h5R_list_attributes(SEXP h5_obj) {
+    int counter = 0;
+    hsize_t n   = 0;
+    SEXP dta;
+
+    H5Aiterate(HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, &n, (H5A_operator2_t) _h5R_count_func, (void*) &counter);
+    
+    index_and_SEXP* isxp = (index_and_SEXP*) Calloc(1, index_and_SEXP);
+    PROTECT(dta = allocVector(STRSXP, counter));
+    isxp->s = dta;
+    isxp->i = 0;
+    
+    n = 0;
+    H5Aiterate(HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, &n, (H5A_operator2_t) _h5R_capture_name, (void*) isxp);
+
+    Free(isxp);
+    UNPROTECT(1);
+
+    return(dta);
+}

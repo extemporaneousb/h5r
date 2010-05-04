@@ -270,3 +270,40 @@ setMethod("dim", "H5DataContainer", function(x) if (length(x@dims) < 2) NULL els
 setMethod("length", "H5DataContainer", function(x) if (is.null(dim(x))) x@dims else prod(x@dims))
 setMethod("nrow", "H5DataContainer", function(x) x@dims[1])
 setMethod("ncol", "H5DataContainer", function(x) x@dims[2])
+
+
+##
+## Examining the file contents.
+##
+
+## construct a list of elements in the file.
+.listH5Contents <- function(h5Obj) .Call("h5R_list_contents", .ePtr(h5Obj))
+.listH5Attributes <- function(h5Obj) .Call("h5R_list_attributes", .ePtr(h5Obj))
+
+listH5Contents <- function(h5Obj) {
+  contents <- .listH5Contents(h5Obj)
+  
+  lst <- lapply(contents, function(a) {
+    h5Obj <- switch(as.character(a[[2]]), '0' = { getH5Group(h5Obj, a[[1]]) }, '1' = { getH5Dataset(h5Obj, a[[1]]) })
+
+    if (class(h5Obj) == "H5Dataset") {
+      dim <- getH5Dim(h5Obj)
+    } else {
+      dim <- NA
+    }
+    list(name = a[[1]], type = a[[2]], attributes = .listH5Attributes(h5Obj), dim = dim)
+  })
+  class(lst) <- "H5ContentList"
+  
+  return(lst)
+}
+
+print.H5ContentList <- function(x, ...) {
+  ## This is a pretty way to print the thing, but
+  ## less so to compute on.
+  d <- as.data.frame(do.call(rbind, x))[, -2]
+  print(d)
+}
+  
+
+
