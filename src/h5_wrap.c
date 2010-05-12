@@ -132,34 +132,87 @@ SEXP h5R_get_dims(SEXP h5_obj) {
     return res;
 }
 
+int _h5R_is_vlen (SEXP h5_obj) {
+    hid_t dtype;
+
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	dtype = H5Dget_type(HID(h5_obj));
+	break;
+    case H5I_ATTR:
+	dtype = H5Aget_type(HID(h5_obj));
+	break;
+    default:
+	error("Unknown object in %s.\n", __func__);
+    }
+    return H5Tis_variable_str(dtype);
+}
+
+int _h5R_get_size (SEXP h5_obj) {
+    int s = -1;
+
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	s = H5Tget_size(H5Dget_type(HID(h5_obj)));
+	break;
+    case H5I_ATTR:
+	s = H5Tget_size(H5Aget_type(HID(h5_obj)));
+	break;
+    default:
+	error("Unknown object in %s.\n", __func__);
+    }
+    return s;
+}
+
+
 SEXP _h5R_read_vlen_str(SEXP h5_obj) {
-    int i;
-
-    SEXP res  = R_NilValue;
-    int nelts = _h5R_get_nelts(h5_obj);
-
+    int i = -1;
+    SEXP res = R_NilValue;
+    void* buf;
+    
+    int nelts     = _h5R_get_nelts(h5_obj);
     char** rdata  = (char **) Calloc(nelts, char*);
     hid_t memtype = H5Tcopy (H5T_C_S1);
-    H5Tset_size (memtype, H5T_VARIABLE);
+
+    if (! _h5R_is_vlen(h5_obj)) {
+	H5Tset_size(memtype, _h5R_get_size(h5_obj) + 1);
+	for (i = 0; i < nelts; i++) {
+	    rdata[i] = (char *) Calloc(_h5R_get_size(h5_obj) + 1, char*);
+	}
+	buf = rdata[0];
+    }
+    else {
+	H5Tset_size(memtype, H5T_VARIABLE);
+	buf = rdata;
+    }
     
     switch (H5Iget_type(HID(h5_obj))) {
     case H5I_DATASET:
-	H5Dread(HID(h5_obj), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdata);
+	H5Dread(HID(h5_obj), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);
 	break;
     case H5I_ATTR:
-	H5Aread(HID(h5_obj), memtype, rdata);
+	H5Aread(HID(h5_obj), memtype, buf);
 	break;
     default:
 	error("Unsupported class in %s.\n", __func__);
     }
     
     PROTECT(res = allocVector(STRSXP, nelts));
-    for (i = 0; i < nelts; i++)
-	if (rdata[i])
+    for (i = 0; i < nelts; i++) {
+	if (rdata[i]) {
      	    SET_STRING_ELT(res, i, mkChar(rdata[i])); 
+	}
+    }
     UNPROTECT(1); 
 
-    H5Dvlen_reclaim (memtype, _h5R_get_space(h5_obj), H5P_DEFAULT, rdata);
+    if (_h5R_is_vlen(h5_obj)) {
+	H5Dvlen_reclaim (memtype, _h5R_get_space(h5_obj), H5P_DEFAULT, rdata);
+    } 
+    else {
+	for (i = 0; i < nelts; i++)
+	    Free(rdata[i]);
+    }
+
     Free(rdata);
     H5Tclose(memtype);
 
@@ -170,6 +223,7 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     SEXP dta = R_NilValue;
     hid_t memtype = -1;
     void* buf = NULL; 
+    
 
     switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
     case H5T_INTEGER: 

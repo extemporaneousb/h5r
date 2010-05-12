@@ -15,3 +15,4 @@ NEW FEATURES
     o Added support for 1-d attributes of type: String, Float, and Integer.
 
 BUG FIXES
+    o Allowed fixed-length strings.
