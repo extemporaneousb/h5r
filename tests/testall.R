@@ -169,6 +169,16 @@ TH("random slice", {
   all.equal(a,b)
 })
 
+
+TH("list attributes, file", {
+  length(listH5Contents(f)) == 13
+})
+
+TH("list attributes, group", {
+  length(listH5Contents(g)) == 10
+})
+
+
 TH(action = "print")
 TH(action = "throw")
 
