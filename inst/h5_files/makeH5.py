@@ -35,6 +35,8 @@ a = random.rand(1000 * 10 * 5) * 10000
 a = a.reshape(1000, 10, 5)
 g.create_dataset("ds_7", data = a, maxshape = (None, None, None))
 
+g.create_dataset("ds_8", data = array([[1,2,3,4,5], [6,7,8,9,10]], dtype = "uint32"))
+
 ## create some more intricate group structure.
 h = g.create_group("group_2")
 i = h.create_group("group_3")

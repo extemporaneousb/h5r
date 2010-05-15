@@ -11,7 +11,6 @@ setClass("H5Obj", representation(ePtr = "externalptr"))
 setClass("H5File", contains = "H5Obj", representation(fileName = "character"))
 setClass("H5Group", contains = "H5Obj", representation(name = "character"))
 
-
 setClassUnion("envOrNULL", c("environment", "NULL"))
 setClass("H5DataContainer", contains = "H5Obj",
          representation(name = "character", dims = "integer",
@@ -89,7 +88,7 @@ setMethod("getH5Type", "H5DataContainer", function(h5Obj) {
 
 setMethod("initialize", c("H5File"), function(.Object, fileName) {
   ## This is obscene. I have to do this because somehow Subclasses
-  ## call this on *class* instanteation time. 
+  ## call this at *class* instantiation time. 
   if (missing(fileName))
     return(.Object)
   
@@ -140,12 +139,44 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   }
 }
 
+.marginCheck <- function(i, d) {
+  if (any(i <= 0))
+    stop("Non-positive selections not allowed when subsetting H5Datasets")
+  if (max(i) > d)
+    stop("Index out of range.")
+}
+
 setMethod("[", "H5DataContainer", .internalSlice)
 setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
+  iMissing <- TRUE
+  if (! missing(i)) {
+    iMissing <- FALSE
+    .marginCheck(i, nrow(x))
+  }
+  jMissing <- TRUE
+  if (! missing(j)) {
+    jMissing <- FALSE
+    .marginCheck(j, ncol(x))
+  }
+
+  ## Not quite sure why this results in a strange state
+  ## of both missing and !missing(.)
+  extras <- tryCatch(list(...), simpleError = function(e) {
+    return(list())
+  })
+
+  nExtra <- 0
+  if (length(extras) > 0) {
+    for (k in 3:(2 + length(extras))) {
+      nExtra <- nExtra + 1
+      .marginCheck(extras[[k-2]], dim(x)[k])
+    }
+  }
+  
   if (.inMemory(x)) {
     ## this is a copy of internal slice, if I don't do it this way
-    ## then ... doesn't really stay consistent and I cannot pass it
-    ## through to the '[' built-in.
+    ## then the arg '...' doesn't really stay consistent and I cannot
+    ## pass it through to the '[' built-in.
     if (!.hasData(x)) {
       .putData(x, .loadDataset(x))
     }
@@ -161,42 +192,37 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
     }
   }
   else {
-    ##
-    ## Currently, This supports only a limited range of slicing.
-    ## contiguous chunks
-    ##  
     if (is.null(dim(x))) {
-      if (! missing(j))
+      if (! jMissing)
         stop("incorrect number of dimensions")
-      if (! missing(i))
+      if (! iMissing) {
         dta <- readSlab(x, min(i), max(i) - min(i) + 1)
+        
+        ## contiguity
+        if (any(diff(i) != 1)) {
+          dta <- dta[i - min(i) + 1]
+        }
+      }
       else
         dta <- readSlab(x, 1, length(x))
     }
     else {
       ## need to specify the dim(x) offset, dim.
       sel <- matrix(NA, nrow = length(dim(x)), ncol = 2)
-      if (! missing(i))
+      if (! iMissing) 
         sel[1, ] <- range(i)
       else
         sel[1, ] <- c(1, dim(x)[1])
 
-      if (! missing(j))
+      if (! jMissing)
         sel[2, ] <- range(j)
       else
         sel[2, ] <- c(1, dim(x)[2])
 
       if (nrow(sel) > 2) {
-        ##
-        ## Not quite sure why this results in a strange state
-        ## of both missing and !missing(.)
-        ##
-        l <- tryCatch(list(...), simpleError = function(e) {
-          return(list())
-        })
         for (k in 3:nrow(sel)) {
-          if (length(l) >= k - 2)
-            sel[k, ] <- range(l[[k - 2]]) # the offset into the list.
+          if (length(extras) >= k - 2)
+            sel[k, ] <- range(extras[[k - 2]]) # the offset into the list.
           else
             sel[k, ] <- c(1, dim(x)[k])
         }
@@ -204,7 +230,36 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
 
       ext <- sel[,2] - sel[,1] + 1
       dta <- readSlab(x, sel[,1], ext)
-     }
+
+      ## Now I have to fix things up because of the contiguity
+      ## issue. Essentially, if the i,j, ... specified by the user
+      ## aren't contiguous then I have to subselect the dta to conform
+      ## to their selection.
+###       kall <- as.list(match.call())
+###       kall$x <- dta
+###       kallincr <- 0
+
+###       if (! iMissing) {
+###         kallincr <-  kallincr + 1
+###         kall$i <- i - min(i) + 1
+###       } else {
+        
+###       }
+      
+###       if (! jMissing) {
+###         kallincr <- kallincr + 1
+###         kall$j <- j - min(j) + 1
+###       }
+
+###       if (length(extras) > 0) {
+###         for (w in 1:length(extras)) {
+###           kall[[2 + kallincr + 1]] <- extras[[w]] - min(extras[[w]]) + 1
+###           kallincr <- kallincr + 1
+###         }
+###       }
+###       dta <- eval(as.call(kall))
+
+    }
     if (drop) drop(dta) else dta
   }
 })
