@@ -349,6 +349,7 @@ listH5Contents <- function(h5Obj) {
     list(name = a[[1]], type = a[[2]], attributes = .listH5Attributes(h5Obj), dim = dim)
   })
   class(lst) <- "H5ContentList"
+  names(lst) <- sapply(lst, "[[", 1)
   
   return(lst)
 }
