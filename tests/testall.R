@@ -36,7 +36,7 @@ TestHarness <- function() {
              tm <- system.time({
                b <- tryCatch(test, simpleError = function(e) {
                  return(FALSE)
-               })
+               }, simpleWarning = function(e) return(FALSE))
              })
              tests[[nm]] <<- list("result" = b, "time" = tm)
            },
@@ -109,7 +109,14 @@ id3 <- ds3M@.data$.data
 TH("3d consistency, slabbed", all(id3[,,] == ds3[,,]) &
    all(id3[,1,,drop=TRUE] == ds3[,1,,drop=TRUE]) &
    all(id3[1,1,,drop=TRUE] == ds3[1,1,,drop=TRUE]) &
-   all(id3[1,,3,drop=TRUE] == ds3[1,,3,drop=TRUE]))
+   all(id3[1,,3,drop=TRUE] == ds3[1,,3,drop=TRUE]) &
+   all(id3[1,,1:3,drop=TRUE] == ds3[1,,1:3,drop=TRUE]))
+
+TH("3d consistency, contiguity",
+   all(id3[,2:1,] == ds3[,2:1,]) &
+   all(id3[,1,seq(1,9,by=4)] == ds3[,1,seq(1,9,by=4)]) &
+   all(id3[3:1,,] == ds3[3:1,,]))
+   
 
 TH("3d consistency, memory", all(id3[,,] == ds3M[,,]) &
    all(id3[,1,,drop=TRUE] == ds3M[,1,,drop=TRUE]) &
@@ -142,24 +149,29 @@ TH("contiguity - 1D", all(ds2M[c(1, 7, 13)] == ds2[c(1, 7, 13)]))
 ds5 <- getH5Dataset(g, "ds_5")
 ds5M <- ds5[]
 
-all(ds5[10:1, ] == ds5M[ 10:1, ])
-all(ds5[10:1, 2] == ds5M[ 10:1, 2])
-all(ds5[seq(1, 10, by = 3), 2] == ds5M[ seq(1, 10, by = 3), 2])
-
+TH("ds5 contiguity",
+   all(ds5[10:1, ] == ds5M[ 10:1, ]) &&
+   all(ds5[10:1, 2] == ds5M[ 10:1, 2]) &&
+   all(ds5[seq(1, 10, by = 3), 2] == ds5M[ seq(1, 10, by = 3), 2]))
 
 ## 5-d object
 ds9M <- getH5Dataset(g, "ds_9", inMemory = T)
-ds9 <- getH5Dataset(g, "ds_9", inMemory = F)
+ds9  <- getH5Dataset(g, "ds_9", inMemory = F)
+id9  <- ds9M[,,,,]
 
-id9 <- ds9M[,,,,]
-all(id9[] == ds9M[,,,,])
-all(id9[] == ds9[])
+TH("5-d 0", all(id9[] == ds9M[,,,,]) && all(id9[] == ds9[]))
 
-all(id9[c(7, 10), c(3, 4), , , ] == ds9[ c(7, 10), c(3, 4), , , ])
-all(id9[c(7, 10), c(3, 4), c(1, 5), , ] == ds9[ c(7, 10), c(3, 4), c(1, 5), , ])
-dim(id9[c(7, 10), c(3, 4), 1:5, , ] == ds9[ c(7, 10), c(3, 4), 1:5, , ])
-all(dim(id9[c(7, 10), c(3, 4), , , ]) == dim(ds9[ c(7, 10), c(3, 4), , , ]))
-all(dim(id9[c(10, 7), 10:1, , , ]) == dim(ds9[ c(10, 7), 10:1, , , ]))
+TH("5-d",
+   all(id9[c(7, 10), c(3, 4), , , ]        == ds9[ c(7, 10), c(3, 4), , , ]) &&
+   all(id9[c(7, 10), c(3, 4), c(1, 5), , ] == ds9[ c(7, 10), c(3, 4), c(1, 5), , ]) &&
+   all(id9[c(7, 10), c(3, 4), 1:5, , ]     == ds9[ c(7, 10), c(3, 4), 1:5, , ]) &&
+   all(id9[c(7, 10), c(3, 4), , , ]        == ds9[ c(7, 10), c(3, 4), , , ]) && 
+   all(id9[c(10, 7), 10:1, , , ]           == ds9[ c(10, 7), 10:1, , , ]) && 
+   all(id9[, , 1:2, 1:2, ]                 == ds9[ , , 1:2, 1:2, ]) && 
+   all(id9[, , 2:1, 2:1, ]                 == ds9[ , , 2:1, 2:1, ]) &&
+   all(id9[ , , , 1:2, 1:2 ]               == ds9[ , , , 1:2, 1:2]) &&
+   all(id9[1,1,1,1,1]                      == ds9[1,1,1,1,1]))
+
 
 ##
 ## More in-depth testing of slicing.
@@ -210,13 +222,12 @@ TH("random slice", {
   all.equal(a,b)
 })
 
-
 TH("list attributes, file", {
-  length(listH5Contents(f)) == 14
+  length(listH5Contents(f)) == 15
 })
 
 TH("list attributes, group", {
-  length(listH5Contents(g)) == 11
+  length(listH5Contents(g)) == 12
 })
 
 ds8 <- getH5Dataset(g, "ds_8", inMemory = FALSE)

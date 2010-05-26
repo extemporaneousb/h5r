@@ -146,31 +146,44 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
     stop("Index out of range.")
 }
 
+.getExtras <- function(kall, dims) {
+  d <- match("drop", names(kall))
+  if (! is.na(d))
+    kall <- kall[-d]
+
+  j <- match("j", names(kall))
+  if (! is.na(j))
+    kall <- kall[-j]
+
+  i <- match("i", names(kall))
+  if (! is.na(i))
+    kall <- kall[-i]
+
+  kall <- kall[-(1:2)]
+
+  if (length(kall) != length(dims))
+    stop("Incorrect number of dimensions.")
+  
+  mapply(function(a,b) {
+    if (is.call(a) || is.numeric(a) && !(as.character(a) == ""))
+      eval(a)
+    else
+      seq.int(1, b)
+  }, kall, dims, SIMPLIFY = FALSE)
+}
+
 setMethod("[", "H5DataContainer", .internalSlice)
 setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
   iMissing <- TRUE
   if (! missing(i)) {
     iMissing <- FALSE
     .marginCheck(i, nrow(x))
-  }
+  } 
+  
   jMissing <- TRUE
   if (! missing(j)) {
     jMissing <- FALSE
     .marginCheck(j, ncol(x))
-  }
-
-  ## Not quite sure why this results in a strange state
-  ## of both missing and !missing(.)
-  extras <- tryCatch(list(...), simpleError = function(e) {
-    return(list())
-  })
-
-  nExtra <- 0
-  if (length(extras) > 0) {
-    for (k in 3:(2 + length(extras))) {
-      nExtra <- nExtra + 1
-      .marginCheck(extras[[k-2]], dim(x)[k])
-    }
   }
   
   if (.inMemory(x)) {
@@ -183,7 +196,7 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
     d <- .getData(x)
     
     if (is.null(dim(x))) {
-      if (! missing(j))
+      if (! jMissing)
         stop("incorrect number of dimensions")
       d[i]
     }
@@ -192,6 +205,7 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
     }
   }
   else {
+    ## One dimensional dataset.
     if (is.null(dim(x))) {
       if (! jMissing)
         stop("incorrect number of dimensions")
@@ -206,7 +220,32 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
       else
         dta <- readSlab(x, 1, length(x))
     }
+
+    ## > 1-D dataset.
     else {
+
+      if (length(dim(x)) > 3) {
+        ## Need to call this function w/in this scope, but don't want
+        ## to absorb cost if we won't need it.
+        kall <- as.list(match.call())
+      }
+      
+      extras <- tryCatch(list(...), simpleError = function(e) {
+        if (length(dim(x)) > 3) {
+          .getExtras(kall, dim(x)[-(1:2)]) # remove i,j
+        } else {
+          return(list())
+        }
+      })
+
+      nExtra <- 0
+      if (length(extras) > 0) {
+        for (k in 3:(2 + length(extras))) {
+          nExtra <- nExtra + 1
+          .marginCheck(extras[[k-2]], dim(x)[k])
+        }
+      }
+       
       ## need to specify the range to select.
       sel <- matrix(NA, nrow = length(dim(x)), ncol = 2)
       lst <- list(`[`, x = quote(dta))
@@ -250,7 +289,6 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
       ## aren't contiguous then I have to subselect the dta to conform
       ## to their selection.
       dta <- eval(as.call(lst))
-      
     }
     if (drop) drop(dta) else dta
   }

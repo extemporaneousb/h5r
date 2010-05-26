@@ -47,6 +47,12 @@ setMethod("[", c("myExample", "missing", "missing", "ANY"), function(x, i, j, ..
 
 setMethod("[", c("myExample", "index", "index", "ANY"), function(x, i, j, ..., drop = TRUE) {
   if (VERBOSE) printCall(match.call(), formals(), nargs())
+
+  print(missing(...))
+  print(as.list(match.call()))
+  browser()
+  match.call()[4:nargs()+1]
+  
   x@x[toNumeric(i), toNumeric(j), ..., drop = drop]
 })
 
@@ -158,3 +164,28 @@ m <- myExample(c(1,3,4))
 
 
 
+      dMissing <- TRUE
+      if (! missing(drop)) {
+        dMissing <- FALSE
+      }
+            ## All the complexity occurs
+      
+  ###     nArgs <- nargs()
+###       kall  <- as.list(match.call())
+###       kall  <- if (! dMissing) kall[-length(kall)]
+###       nArgs <- if (! dMissing) nArgs - 1 else nArgs
+      
+      
+###       if (nArgs > 3) {
+###         start <- 3
+###         start <- if (! iMissing) start + 1 else start
+###         start <- if (! jMissing) start + 1 else start
+        
+###         extras <- kall[start:nArgs]
+###         browser()
+###                                         # extras <- Filter(function(x) class(x) == "call" || class(x) == "numeric", extras)
+###         extras <- lapply(extras, eval)
+###       } else {
+###         extras <- list()
+###       }
+      
