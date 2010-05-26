@@ -44,4 +44,8 @@ i = h.create_group("group_3")
 j = f.create_group("group_4")
 j.create_dataset("ds_1", data = a, maxshape = (None, None, None))
 
+## create a 5-dimensional dataset for the hell of it.
+a = random.randint(1, 10000, prod([10]*5)).reshape(tuple([10]*5))
+g.create_dataset("ds_9", data = a, maxshape = tuple([None]*5))
+
 f.close()

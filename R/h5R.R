@@ -207,58 +207,50 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
         dta <- readSlab(x, 1, length(x))
     }
     else {
-      ## need to specify the dim(x) offset, dim.
+      ## need to specify the range to select.
       sel <- matrix(NA, nrow = length(dim(x)), ncol = 2)
-      if (! iMissing) 
+      lst <- list(`[`, x = quote(dta))
+      
+      if (! iMissing) {
         sel[1, ] <- range(i)
-      else
+        lst$i <- i - min(i) + 1
+      } else {
+        ## retain original dimensions.
         sel[1, ] <- c(1, dim(x)[1])
+        lst$i <- seq.int(sel[1,1], sel[1,2])
+      }
 
-      if (! jMissing)
+      if (! jMissing) {
         sel[2, ] <- range(j)
-      else
+        lst$j <- j - min(j) + 1
+      } 
+      else {
+        ## retain original dimensions.
         sel[2, ] <- c(1, dim(x)[2])
+        lst$j <- seq.int(sel[2,1], sel[2,2])
+      }
 
       if (nrow(sel) > 2) {
         for (k in 3:nrow(sel)) {
-          if (length(extras) >= k - 2)
+          if (length(extras) >= k - 2) {
             sel[k, ] <- range(extras[[k - 2]]) # the offset into the list.
-          else
+            lst[[k+2]] <- extras[[k-2]] - min(extras[[k-2]]) + 1
+          }
+          else {
             sel[k, ] <- c(1, dim(x)[k])
+            lst[[k+2]] <- seq.int(sel[k,1], sel[k,2])
+          }
         }
       }
-
       ext <- sel[,2] - sel[,1] + 1
       dta <- readSlab(x, sel[,1], ext)
 
       ## Now I have to fix things up because of the contiguity
-      ## issue. Essentially, if the i,j, ... specified by the user
+      ## issue. Essentially, if the i, j, ... specified by the user
       ## aren't contiguous then I have to subselect the dta to conform
       ## to their selection.
-###       kall <- as.list(match.call())
-###       kall$x <- dta
-###       kallincr <- 0
-
-###       if (! iMissing) {
-###         kallincr <-  kallincr + 1
-###         kall$i <- i - min(i) + 1
-###       } else {
-        
-###       }
+      dta <- eval(as.call(lst))
       
-###       if (! jMissing) {
-###         kallincr <- kallincr + 1
-###         kall$j <- j - min(j) + 1
-###       }
-
-###       if (length(extras) > 0) {
-###         for (w in 1:length(extras)) {
-###           kall[[2 + kallincr + 1]] <- extras[[w]] - min(extras[[w]]) + 1
-###           kallincr <- kallincr + 1
-###         }
-###       }
-###       dta <- eval(as.call(kall))
-
     }
     if (drop) drop(dta) else dta
   }

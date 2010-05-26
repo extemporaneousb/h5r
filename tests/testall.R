@@ -1,5 +1,7 @@
 require(h5r)
 
+## gctorture(TRUE)
+
 assertError <- function(expr) {
   tryCatch({{expr}; FALSE}, simpleError = function(e) {
     return(TRUE)
@@ -55,6 +57,7 @@ TestHarness <- function() {
 ## Make a new TestHarness.
 ##
 TH <- TestHarness()
+
 
 ##
 ## The tests.
@@ -132,6 +135,31 @@ TH("ds_4, memory", (function(n = 100, s = 100) {
   all(g1 - gc()[,1] <= 0)
 })())
 
+## contiguity problem.
+TH("contiguity", all(ds4M[1, c(2,3,5)] == ds4[1, c(2,3,5)]))
+TH("contiguity - 1D", all(ds2M[c(1, 7, 13)] == ds2[c(1, 7, 13)]))
+
+ds5 <- getH5Dataset(g, "ds_5")
+ds5M <- ds5[]
+
+all(ds5[10:1, ] == ds5M[ 10:1, ])
+all(ds5[10:1, 2] == ds5M[ 10:1, 2])
+all(ds5[seq(1, 10, by = 3), 2] == ds5M[ seq(1, 10, by = 3), 2])
+
+
+## 5-d object
+ds9M <- getH5Dataset(g, "ds_9", inMemory = T)
+ds9 <- getH5Dataset(g, "ds_9", inMemory = F)
+
+id9 <- ds9M[,,,,]
+all(id9[] == ds9M[,,,,])
+all(id9[] == ds9[])
+
+all(id9[c(7, 10), c(3, 4), , , ] == ds9[ c(7, 10), c(3, 4), , , ])
+all(id9[c(7, 10), c(3, 4), c(1, 5), , ] == ds9[ c(7, 10), c(3, 4), c(1, 5), , ])
+dim(id9[c(7, 10), c(3, 4), 1:5, , ] == ds9[ c(7, 10), c(3, 4), 1:5, , ])
+all(dim(id9[c(7, 10), c(3, 4), , , ]) == dim(ds9[ c(7, 10), c(3, 4), , , ]))
+all(dim(id9[c(10, 7), 10:1, , , ]) == dim(ds9[ c(10, 7), 10:1, , , ]))
 
 ##
 ## More in-depth testing of slicing.
