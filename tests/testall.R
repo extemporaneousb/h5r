@@ -46,7 +46,8 @@ TestHarness <- function() {
            throw = {
              errs <- ! sapply(tests, getResult)
              if (any(errs)) {
-               stop(simpleError(paste("Tests in error:\n", paste(paste("\t", names(tests)[errs], sep = ""), collapse = "\n"),
+               stop(simpleError(paste("Tests in error:\n", paste(paste("\t", names(tests)[errs], sep = ""),
+                                                                 collapse = "\n"),
                                       sep = "")))
              }
            })
@@ -237,6 +238,12 @@ TH("dim check 2", assertError(ds8[0,1:5]))
 TH("dim check 3", assertError(ds8[-1,1:5]))
 TH("dim check 4", assertError(ds8[10,1]))
 TH("test 0-vs-1 based", all(ds8[1,1:5] == 1:5))
+
+
+TH("matrix grab.",
+   all(ds8[rbind(1:2,1:2)] == ds8[1:2, 1:2]) &
+   all(ds8[] == ds8[ cbind(c(1,1), dim(ds8)) ]))
+   
 
 TH(action = "print")
 TH(action = "throw")

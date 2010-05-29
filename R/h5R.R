@@ -111,7 +111,8 @@ setMethod("initialize", c("H5File"), function(.Object, fileName) {
   return(o)
 }
 
-setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName, inMemory = TRUE) {
+setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName,
+                                                            inMemory = FALSE) {
   o <- new("H5Dataset")
   o@ePtr <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5r')
   return(.initH5DataContainer(o, datasetName, inMemory))
@@ -294,15 +295,28 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
   }
 })
 
+## This function is written to leverage the possibility of fast contiguous
+## range access. Here matrix is a two-column matrix with start, stop.
+## Other options will be IRanges.
+## setMethod("[", c("H5Dataset", "matrix", "missing", "missing"), function(x, i) {
+##   if (.inMemory(x))
+##     stop("Not implemented for inMemory datasets.")
+
+##   nr <- nrow(i)
+##   if (! ((nr == 1 && is.null(dim(x))) || (nr == length(dim(x)))))
+##     stop("Dimension mismatch: nrow(x) == length(dim(x))")
+  
+##   readSlab(x, i[,1], i[,2] - i[,1] + 1)
+## })
+
 ##
 ## Note: the two reverses.
 ##
-.myperm <- function(d) if (!is.null(dim(d))) aperm(d) else d
-
 .loadDataset <- function(h5Dataset) {
   d <- readDataAsVector(h5Dataset)
   dim(d) <- rev(dim(h5Dataset))
-  .myperm(d)
+  
+  if (! is.null(dim(h5Dataset))) aperm(d) else d
 }
 
 readSlab <- function(h5Dataset, offsets, dims) {
@@ -311,7 +325,8 @@ readSlab <- function(h5Dataset, offsets, dims) {
   
   d <- .Call("h5R_read_slab", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
   dim(d) <- rev(dims)
-  .myperm(d)
+
+  if (! is.null(dim(h5Dataset))) aperm(d) else d
 }
 
 setGeneric("readDataAsVector", function(h5Obj, ...) {
