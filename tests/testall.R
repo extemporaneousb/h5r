@@ -79,6 +79,10 @@ TH("ds_1 dim, 3", all(dim(ds1[1:10, ]) == c(10, 10)))
 TH("ds_1 dim, 4", is.null(dim(ds1[, 1])))
 TH("ds_1 dim, 5", assertError(ds1[,1:12]))
 
+## test existence.
+TH("existence, 1", h5Exists(g, "ds_1"))
+TH("existence, 2", h5Exists(g, "ds_232") == FALSE)
+
 ## string dataset
 ds2M <- getH5Dataset(g, "ds_2", inMemory = T)
 ds2 <- getH5Dataset(g, "ds_2", inMemory = F)
@@ -240,10 +244,35 @@ TH("dim check 4", assertError(ds8[10,1]))
 TH("test 0-vs-1 based", all(ds8[1,1:5] == 1:5))
 
 
-TH("matrix grab.",
-   all(ds8[rbind(1:2,1:2)] == ds8[1:2, 1:2]) &
-   all(ds8[] == ds8[ cbind(c(1,1), dim(ds8)) ]))
+TH("hSlab grab",
+   all(ds8[hSlab(c(1,1), end = c(2,2))] == ds8[1:2, 1:2]) &
+   all(ds8[] == ds8[ hSlab(c(1,1), end = dim(ds8)) ]))
+
+TH("normal time", {
+  all(replicate(10000, {
+    m <- apply(cbind(c(1,1,1), dim(ds7)), 1, function(b) {
+      a <- runif(1, b[1], b[2])
+      floor(c(a, runif(1, a, b[2])))
+    })
+    ds7[m[1,1]:m[2,1],
+        m[1,2]:m[2,2],
+        m[1,3]:m[2,3]]
+    return(TRUE)
+  }))
+})
+
+TH("hSlab time", {
+  all(replicate(10000, {
+    m <- apply(cbind(c(1,1,1), dim(ds7)), 1, function(b) {
+      a <- runif(1, b[1], b[2])
+      floor(c(a, runif(1, a, b[2])))
+    })
+    ds7[hSlab(m[1,], end = m[2,])]
+    return(TRUE)
+  }))
+})
    
+
 
 TH(action = "print")
 TH(action = "throw")

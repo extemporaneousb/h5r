@@ -18,6 +18,44 @@ setClass("H5DataContainer", contains = "H5Obj",
 setClass("H5Dataset", contains = "H5DataContainer")
 setClass("H5Attribute", contains = "H5DataContainer")
 
+setClass("hSlab", representation = representation(s = "integer", w = "integer"))
+
+hSlab <- function(start, width = NA, end = NA) {
+  stopifnot(length(start) == length(width) || length(start) == length(end))
+
+  if (any(is.na(end)) & any(is.na(width))) {
+    stop("Must specify either end or width.")
+  } else {
+    if(any(is.na(end))) {
+      width <- width
+    }
+    else {
+      width <- (end - start + 1)
+    }
+  }
+  obj <- new("hSlab")
+  obj@s <- as.integer(start)
+  obj@w <- as.integer(width)
+  return(obj)
+}
+
+setMethod("length", "hSlab", function(x) {
+  length(x@s)
+})
+setGeneric("start", function(x, ...) {
+  standardGeneric("start")
+})
+setMethod("start", "hSlab", function(x) {
+  x@s
+})
+setGeneric("width", function(x, ...) {
+  standardGeneric("width")
+})
+setMethod("width", "hSlab", function(x) {
+  x@w
+})
+
+
 H5File <- function(fileName) {
   new("H5File", fileName)
 }
@@ -298,16 +336,16 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
 ## This function is written to leverage the possibility of fast contiguous
 ## range access. Here matrix is a two-column matrix with start, stop.
 ## Other options will be IRanges.
-## setMethod("[", c("H5Dataset", "matrix", "missing", "missing"), function(x, i) {
-##   if (.inMemory(x))
-##     stop("Not implemented for inMemory datasets.")
-
-##   nr <- nrow(i)
-##   if (! ((nr == 1 && is.null(dim(x))) || (nr == length(dim(x)))))
-##     stop("Dimension mismatch: nrow(x) == length(dim(x))")
+setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
+  if (.inMemory(x))
+    stop("Not implemented for inMemory datasets.")
   
-##   readSlab(x, i[,1], i[,2] - i[,1] + 1)
-## })
+  nr <- length(i)
+  if (! ((nr == 1 && is.null(dim(x))) || (nr == length(dim(x)))))
+    stop("Dimension mismatch: nrow(x) == length(dim(x))")
+  
+  readSlab(x, start(i), width(i))
+})
 
 ##
 ## Note: the two reverses.
@@ -368,8 +406,12 @@ setMethod("show", "H5DataContainer", function(object) {
 
 setMethod("dim", "H5DataContainer", function(x) if (length(x@dims) < 2) NULL else x@dims)
 setMethod("length", "H5DataContainer", function(x) if (is.null(dim(x))) x@dims else prod(x@dims))
-setMethod("nrow", "H5DataContainer", function(x) x@dims[1])
-setMethod("ncol", "H5DataContainer", function(x) x@dims[2])
+setMethod("nrow", "H5DataContainer", function(x) {
+  x@dims[1]
+})
+setMethod("ncol", "H5DataContainer", function(x) {
+  x@dims[2]
+})
 
 
 ##
@@ -384,27 +426,41 @@ listH5Contents <- function(h5Obj) {
   contents <- .listH5Contents(h5Obj)
   
   lst <- lapply(contents, function(a) {
-    h5Obj <- switch(as.character(a[[2]]), '0' = { getH5Group(h5Obj, a[[1]]) }, '1' = { getH5Dataset(h5Obj, a[[1]]) })
+    h5Obj <- switch(as.character(a[[2]]),
+                    '0' = { getH5Group(h5Obj, a[[1]]) },
+                    '1' = { getH5Dataset(h5Obj, a[[1]]) })
 
     if (class(h5Obj) == "H5Dataset") {
       dim <- getH5Dim(h5Obj)
     } else {
       dim <- NA
     }
-    list(name = a[[1]], type = a[[2]], attributes = .listH5Attributes(h5Obj), dim = dim)
+    list(name = a[[1]], type = a[[2]], attributes = .listH5Attributes(h5Obj),
+         dim = dim)
   })
-  class(lst) <- "H5ContentList"
   names(lst) <- sapply(lst, "[[", 1)
-  
   return(lst)
 }
 
-print.H5ContentList <- function(x, ...) {
-  ## This is a pretty way to print the thing, but
-  ## less so to compute on.
-  d <- as.data.frame(do.call(rbind, x))[, -2]
-  print(d)
+##
+## Does the name exist directly below the h5Obj.
+##
+## XXX: This function might be implemented in C more
+##      efficiently, i.e., short-circuiting when the
+##      object is found, but I have avoided using the
+##      Lightweight interface.
+h5Exists <- function(h5Obj, name) {
+  a <- .listH5Contents(h5Obj)
+  n <- sapply(a, "[[", 1)
+  s <- sapply(strsplit(n, "/"), "[[", 1)
+  any(s == name)
+
+  ## This call determines if an object exists anywhere in
+  ## the file with 'name'
+  ##
+  ## return(.Call("h5R_name_exists", .ePtr(h5Obj), name))
 }
+
   
 
 

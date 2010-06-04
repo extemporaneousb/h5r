@@ -354,7 +354,7 @@ SEXP h5R_read_attr(SEXP h5_attr) {
 typedef struct __index_and_SEXP__ {
     int  i;
     SEXP s;
-} index_and_SEXP;
+} __index_and_SEXP__;
 
 
 herr_t _h5R_count_func(hid_t loc_id, const char *name, const H5O_info_t *info,
@@ -367,7 +367,7 @@ herr_t _h5R_count_func(hid_t loc_id, const char *name, const H5O_info_t *info,
 
 herr_t _h5R_capture_name(hid_t loc_id, const char *name, const H5O_info_t *info,
 			 void *operator_data) {
-    index_and_SEXP* od = (index_and_SEXP*) operator_data;
+    __index_and_SEXP__* od = (__index_and_SEXP__*) operator_data;
     SET_STRING_ELT(od->s, (od->i)++, mkChar(name));
     
     return 0;
@@ -375,7 +375,7 @@ herr_t _h5R_capture_name(hid_t loc_id, const char *name, const H5O_info_t *info,
 
 herr_t _h5R_capture_name_and_type(hid_t loc_id, const char *name, const H5O_info_t *info,
 				  void *operator_data) {
-    index_and_SEXP* od = (index_and_SEXP*) operator_data;
+    __index_and_SEXP__* od = (__index_and_SEXP__*) operator_data;
     SEXP lst, str;
 
     PROTECT(lst = allocVector(VECSXP, 2));
@@ -392,7 +392,7 @@ herr_t _h5R_capture_name_and_type(hid_t loc_id, const char *name, const H5O_info
 
 SEXP h5R_list_contents(SEXP h5_obj) {
     int counter = 0; 
-    index_and_SEXP* isxp = (index_and_SEXP*) Calloc(1, index_and_SEXP);
+    __index_and_SEXP__* isxp = (__index_and_SEXP__*) Calloc(1, __index_and_SEXP__);
     SEXP dta;
 
     H5Ovisit (HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, _h5R_count_func, (void*) &counter);
@@ -415,7 +415,7 @@ SEXP h5R_list_attributes(SEXP h5_obj) {
 
     H5Aiterate(HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, &n, (H5A_operator2_t) _h5R_count_func, (void*) &counter);
     
-    index_and_SEXP* isxp = (index_and_SEXP*) Calloc(1, index_and_SEXP);
+    __index_and_SEXP__* isxp = (__index_and_SEXP__*) Calloc(1, __index_and_SEXP__);
     PROTECT(dta = allocVector(STRSXP, counter));
     isxp->s = dta;
     isxp->i = 0;
@@ -427,4 +427,23 @@ SEXP h5R_list_attributes(SEXP h5_obj) {
     UNPROTECT(1);
 
     return(dta);
+}
+
+herr_t _h5R_name_exists(hid_t loc_id, const char *name, const H5O_info_t *info,
+			void *operator_data) {
+
+    const char* probe = (const char*) operator_data;
+
+    if (strcmp(name, probe) == 0) {
+	return 1; //short-circuit.
+    } else {
+	return 0; //continue
+    }
+}
+
+SEXP h5R_name_exists(SEXP h5_obj, SEXP _name) {
+    const char* name = NM(_name);
+    herr_t v = H5Ovisit (HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, _h5R_name_exists, 
+			 (void*) name);
+    return ScalarLogical(v); 
 }
