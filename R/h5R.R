@@ -329,13 +329,18 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
       ## to their selection.
       dta <- eval(as.call(lst))
     }
-    if (drop) drop(dta) else dta
+    dta <- if (drop) drop(dta) else dta
+
+    ## This is so dim(x[]) matches dim(x).
+    if (is.null(dim(x)))
+      as.vector(dta)
+    else
+      dta
   }
 })
 
 ## This function is written to leverage the possibility of fast contiguous
-## range access. Here matrix is a two-column matrix with start, stop.
-## Other options will be IRanges.
+## range access.
 setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
   if (.inMemory(x))
     stop("Not implemented for inMemory datasets.")

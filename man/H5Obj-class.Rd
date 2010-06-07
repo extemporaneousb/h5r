@@ -26,6 +26,22 @@
 \alias{readSlab}
 \alias{listH5Contents}
 \alias{print.H5ContentList}
+\alias{h5Exists}
+\alias{hSlab}
+\alias{start}
+\alias{width}
+\alias{[,H5DataContainer,ANY,ANY,ANY-method}
+\alias{[,H5Dataset,ANY,ANY,ANY-method}
+\alias{[,H5Dataset,hSlab,missing,missing-method}
+\alias{length,hSlab-method}
+\alias{show,H5DataContainer-method}
+\alias{show,H5File-method}
+\alias{show,H5Group-method}
+\alias{show,H5Obj-method}
+\alias{start,hSlab-method}
+\alias{width,hSlab-method}
+
+
 
 \title{Class "H5Obj"}
 \description{Classes for objects originating from HDF5 files.}

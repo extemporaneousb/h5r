@@ -271,7 +271,11 @@ TH("hSlab time", {
     return(TRUE)
   }))
 })
-   
+
+
+dim(ds2)
+
+
 
 
 TH(action = "print")
