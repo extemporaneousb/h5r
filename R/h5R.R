@@ -112,8 +112,10 @@ setGeneric("getH5Attribute", function(h5Obj, attrName, ...) {
 })
 
 setMethod("getH5Group", c("H5Obj", "character"), function(h5Obj, groupName) {
-  .H5Group(.Call("h5R_get_group", .ePtr(h5Obj), groupName,
-                 PACKAGE = 'h5r'), groupName)
+  if (is.null(x <- .Call("h5R_get_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5r')))
+    stop(paste("Group:", groupName, "cannot be opened."))
+
+  .H5Group(x, groupName)
 })
 
 setMethod("getH5Dim", "H5DataContainer", function(h5Obj) {
@@ -129,9 +131,19 @@ setMethod("initialize", c("H5File"), function(.Object, fileName) {
   ## call this at *class* instantiation time. 
   if (missing(fileName))
     return(.Object)
+
+  if (! file.exists(fileName)) {
+    stop(paste("Unable to open file:", fileName, "does not exist."))
+  }
+  x <- .Call("h5R_open", fileName, package = "h5R")
+
+  if (is.null(x)) {
+    stop(paste("Problem opening file:", fileName))
+  }
   
-  .Object@ePtr <- .Call("h5R_open", fileName, package = "h5R")
+  .Object@ePtr <- x
   .Object@fileName <- fileName
+  
   return(.Object)
 })
 
@@ -151,14 +163,22 @@ setMethod("initialize", c("H5File"), function(.Object, fileName) {
 
 setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName,
                                                             inMemory = FALSE) {
+  if (is.null(x <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5r'))) {
+    stop(paste("Dataset:", datasetName, "cannot be opened."))
+  }
+ 
   o <- new("H5Dataset")
-  o@ePtr <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5r')
+  o@ePtr <- x
   return(.initH5DataContainer(o, datasetName, inMemory))
 })
 
 setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
+  if (is.null(x <- .Call("h5R_get_attr", .ePtr(h5Obj), attrName, PACKAGE = 'h5r'))) {
+     stop(paste("Attribute:", attrName, "cannot be opened."))
+  }
+  
   o <- new("H5Attribute")
-  o@ePtr <- .Call("h5R_get_attr", .ePtr(h5Obj), attrName, PACKAGE = 'h5r')
+  o@ePtr <- x
   return(.initH5DataContainer(o, attrName, inMemory = TRUE))
 })
 
@@ -457,8 +477,7 @@ listH5Contents <- function(h5Obj) {
 h5Exists <- function(h5Obj, name) {
   a <- .listH5Contents(h5Obj)
   n <- sapply(a, "[[", 1)
-  s <- sapply(strsplit(n, "/"), "[[", 1)
-  any(s == name)
+  any(n == name)
 
   ## This call determines if an object exists anywhere in
   ## the file with 'name'

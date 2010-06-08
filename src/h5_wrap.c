@@ -26,13 +26,17 @@ void h5R_finalizer(SEXP h5_obj) {
 }
 
 SEXP _h5R_make_holder (hid_t id, int is_file) {
+    if (id < 0) {
+	return R_NilValue;
+    } 
+
     h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
     holder->id = id;
     holder->is_file = is_file;
     
     SEXP e_ptr = R_MakeExternalPtr(holder, install("hd5_handle"), R_NilValue); 
     R_RegisterCFinalizerEx(e_ptr, h5R_finalizer, TRUE);
-
+    
     return e_ptr;
 }
 
@@ -53,7 +57,7 @@ SEXP h5R_get_attr(SEXP h5_obj, SEXP attr_name) {
 }
 
 SEXP h5R_get_type(SEXP h5_obj) {
-    SEXP dtype = R_NilValue;
+    SEXP dtype   = R_NilValue;
     hid_t cls_id = -1;
 
     switch (H5Iget_type(HID(h5_obj))) {
@@ -166,6 +170,7 @@ int _h5R_get_size (SEXP h5_obj) {
 
 
 SEXP _h5R_read_vlen_str(SEXP h5_obj) {
+    int __ERROR__ = 0;
     int i = -1;
     SEXP res = R_NilValue;
     void* buf;
@@ -194,17 +199,20 @@ SEXP _h5R_read_vlen_str(SEXP h5_obj) {
 	H5Aread(HID(h5_obj), memtype, buf);
 	break;
     default:
-	error("Unsupported class in %s.\n", __func__);
+	__ERROR__ = 1;	
     }
     
-    PROTECT(res = allocVector(STRSXP, nelts));
-    for (i = 0; i < nelts; i++) {
-	if (rdata[i]) {
-     	    SET_STRING_ELT(res, i, mkChar(rdata[i])); 
+    if (__ERROR__ == 0) {
+	PROTECT(res = allocVector(STRSXP, nelts));
+	for (i = 0; i < nelts; i++) {
+	    if (rdata[i]) {
+		SET_STRING_ELT(res, i, mkChar(rdata[i])); 
+	    }
 	}
+	UNPROTECT(1); 
     }
-    UNPROTECT(1); 
-
+    
+    /** Cleanup. **/
     if (_h5R_is_vlen(h5_obj)) {
 	H5Dvlen_reclaim (memtype, _h5R_get_space(h5_obj), H5P_DEFAULT, rdata);
     } 
@@ -212,9 +220,12 @@ SEXP _h5R_read_vlen_str(SEXP h5_obj) {
 	for (i = 0; i < nelts; i++)
 	    Free(rdata[i]);
     }
-
     Free(rdata);
     H5Tclose(memtype);
+
+    if (__ERROR__ == 1) {
+	error("Unsupported class in %s.\n", __func__);
+    }
 
     return res;
 }
@@ -249,6 +260,7 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
 }
 
 SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
+    int __ERROR__ = 0;
     SEXP dta = R_NilValue;
     hid_t space = -1, memspace = -1, memtype = -1;
     void* buf = NULL; 
@@ -289,23 +301,26 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 	H5Tset_size (memtype, H5T_VARIABLE);   
 	break;
     default:
-	error("Unsupported class in %s\n", __func__);
+	__ERROR__ = 1;
     }
     
-    H5Dread(HID(h5_dataset), memtype, memspace, space, H5P_DEFAULT, buf);
 
-    /** There requires a little more with strings. **/
-    if (H5T_STRING == INTEGER(h5R_get_type(h5_dataset))[0]) {
-	PROTECT(dta = allocVector(STRSXP, v));
-	for (i = 0; i < v; i++)
-	    if (((char **) buf)[i]) {
-		SET_STRING_ELT(dta, i, mkChar(  ((char **) buf)[i] )); 
-	    }
+    if (__ERROR__ == 0) {
+	H5Dread(HID(h5_dataset), memtype, memspace, space, H5P_DEFAULT, buf);
 
-	H5Dvlen_reclaim (memtype, memspace, H5P_DEFAULT, buf);
-	
-	H5Tclose(memtype);
-	Free(buf);
+	/** There requires a little more with strings. **/
+	if (H5T_STRING == INTEGER(h5R_get_type(h5_dataset))[0]) {
+	    PROTECT(dta = allocVector(STRSXP, v));
+	    for (i = 0; i < v; i++)
+		if (((char **) buf)[i]) {
+		    SET_STRING_ELT(dta, i, mkChar(  ((char **) buf)[i] )); 
+		}
+	    
+	    H5Dvlen_reclaim (memtype, memspace, H5P_DEFAULT, buf);
+	    
+	    H5Tclose(memtype);
+	    Free(buf);
+	}
     }
 
     /** clean up. **/
@@ -316,6 +331,10 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 
     UNPROTECT(1);
     
+    if (__ERROR__ == 1) {
+	error("Unsupported class in %s\n", __func__);
+    }
+
     return dta;
 }
 
