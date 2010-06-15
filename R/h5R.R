@@ -460,10 +460,17 @@ listH5Contents <- function(h5Obj) {
     } else {
       dim <- NA
     }
-    list(name = a[[1]], type = a[[2]], attributes = .listH5Attributes(h5Obj),
+    list(name = a[[1]],
+         type = a[[2]],
+         attributes = .listH5Attributes(h5Obj),
          dim = dim)
   })
   names(lst) <- sapply(lst, "[[", 1)
+  lst <- lapply(lst, function(a) {
+    a$name <- basename(a$name)
+    a
+  })
+
   return(lst)
 }
 

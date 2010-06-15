@@ -10,36 +10,30 @@ names(chunks) <- chunks <- c("1e3", "1e4", "1e5", "1e6")
 cDtas <- lapply(paste("cdata", chunks, sep = "_"), function(n) getH5Dataset(h5, n, inMemory = FALSE))
 names(cDtas) <- chunks
 
-N <- 1000
-K <- 1000
-
-f <- function(d, n = N, mu = 1000) {
+f <- function(d, n = 100, mu = 1000) {
   start <- runif(n, 1, length(d))
-  end  <- start + round(rexp(n, 1/mu))
-  end <- ifelse(end > length(d), start, end)
+  end   <- start + round(rexp(n, 1/mu))
+  end   <- ifelse(end > length(d), start, end)
+  width <- end - start + 1
   
-  mapply(function(s,e) {
-    z <- d[s:e]
-  }, start, end)
-
+  lapply(seq.int(1, n), function(i) {
+    readSlab(d, start[i], width[i])
+    return(NULL)
+  })
   return(TRUE)
 }
 
-g <- function(d, n = N, mu = 1000) {
-  start <- runif(n, 1, length(d))
-  end  <- start + round(rexp(n, 1/mu))
-  end <- ifelse(end > length(d), start, end)
-  
-  mapply(function(s,e) {
-    z <- d[matrix(c(s,e), ncol = 2)]
-  }, start, end)
+times <- replicate(100, {
+  system.time(f(cDtas[[1]], n = 1000))[3]
+})
 
-  return(TRUE)
-}
+pyTimes <- scan("pyres.txt")
 
-system.time(f(cDtas[[1]], n = 100000))
-system.time(g(cDtas[[1]], n = 100000))
-
+png("numpyVR.png")
+par(mar = c(8, 6, 5, 1), cex.lab = 2, cex.axis = 2, cex.main = 2)
+boxplot(list("Python" = pyTimes, "R" = times), ylim = c(.075, .15),
+        las = 2, main = "Random 1k dataset slice")
+dev.off()
 
 
 Rprof("rprof")
