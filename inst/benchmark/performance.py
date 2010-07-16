@@ -2,10 +2,6 @@ from h5py import *
 from numpy import *
 import time
 
-h5 = File("/home/NANOFLUIDICS/jbullard/local/big.h5")
-ds = h5["cdata_1e3"]
-N  = 100
-
 def f(ds, N):
     start = random.randint(0, len(ds), N)
     end   = start + random.exponential(1000, N) + 1
@@ -25,7 +21,14 @@ def myTime(K, ds, N):
         res[i] = time.time() - s
     return res
 
-times = myTime(100, ds, N = 1000)
-o     = file('pyres.txt', 'w')
-o.write(" ".join(map(str, times)))
+o = file('pyres.txt', 'w')
+
+for h5 in [File("./u_big.h5"), File("./z_big.h5")]:
+    for k in h5.keys():
+        ds = h5[k]
+        times = myTime(100, ds, N = 1000)
+        o.write(k + " ")
+        o.write(" ".join(map(str, times)))
+        o.write("\n")
+
 o.close()
