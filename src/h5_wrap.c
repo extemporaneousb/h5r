@@ -372,10 +372,13 @@ SEXP h5R_read_attr(SEXP h5_attr) {
  */
 
 /** Inspection **/
-SEXP h5R_attribute_exists(SEXP h5_obj, const char* name) {
-    return ScalarInteger(H5Aexists(HID(h5_obj), name));
+SEXP h5R_attribute_exists(SEXP h5_obj, SEXP name) {
+    return(ScalarInteger(H5Aexists(HID(h5_obj), NM(name))));
 }
 
+SEXP h5R_dataset_exists(SEXP h5_obj, SEXP name) {
+    return(ScalarInteger(H5Lexists(HID(h5_obj), NM(name), H5P_DEFAULT)));
+}
 
 /** Iteration **/
 typedef struct __index_and_SEXP__ {

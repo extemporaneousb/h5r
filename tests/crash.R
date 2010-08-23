@@ -1,7 +1,6 @@
 ##
 ## These are tests which error in hdf5 libraries and should give an R error.
 ##
-
 require(h5r)
 
 source("tinyTestHarness.R")

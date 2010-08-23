@@ -28,8 +28,8 @@ TH("ds_1 dim, 4", is.null(dim(ds1[, 1])))
 TH("ds_1 dim, 5", assertError(ds1[,1:12]))
 
 ## test existence.
-TH("existence, 1", h5Exists(g, "ds_1"))
-TH("existence, 2", h5Exists(g, "ds_232") == FALSE)
+TH("existence, 1", h5DatasetExists(g, "ds_1"))
+TH("existence, 2", h5DatasetExists(g, "ds_232") == FALSE)
 
 ## string dataset
 ds2M <- getH5Dataset(g, "ds_2", inMemory = T)

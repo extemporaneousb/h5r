@@ -475,30 +475,13 @@ listH5Contents <- function(h5Obj) {
 }
 
 h5DatasetExists <- function(h5Obj, name) {
-  .Call("h5R_attribute_exists", .ePtr(h5Obj), name) == 1
+  .Call("h5R_dataset_exists", .ePtr(h5Obj), name) == 1
 }
 
 h5AttributeExists <- function(h5Obj, name) {
-  
+  .Call("h5R_attribute_exists", .ePtr(h5Obj), name) == 1
 }
 
-##
-## Does the name exist directly below the h5Obj.
-##
-## XXX: This function might be implemented in C more
-##      efficiently, i.e., short-circuiting when the
-##      object is found, but I have avoided using the
-##      Lightweight interface.
-h5Exists <- function(h5Obj, name) {
-  a <- .listH5Contents(h5Obj)
-  n <- sapply(a, "[[", 1)
-  any(n == name)
-
-  ## This call determines if an object exists anywhere in
-  ## the file with 'name'
-  ##
-  ## return(.Call("h5R_name_exists", .ePtr(h5Obj), name))
-}
 
   
 
