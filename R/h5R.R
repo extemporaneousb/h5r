@@ -474,6 +474,14 @@ listH5Contents <- function(h5Obj) {
   return(lst)
 }
 
+h5DatasetExists <- function(h5Obj, name) {
+  .Call("h5R_attribute_exists", .ePtr(h5Obj), name) == 1
+}
+
+h5AttributeExists <- function(h5Obj, name) {
+  
+}
+
 ##
 ## Does the name exist directly below the h5Obj.
 ##

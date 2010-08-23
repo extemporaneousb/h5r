@@ -368,8 +368,16 @@ SEXP h5R_read_attr(SEXP h5_attr) {
 }
 
 /**
- * File content iteration.
+ * File content inspection and iteration.
  */
+
+/** Inspection **/
+SEXP h5R_attribute_exists(SEXP h5_obj, const char* name) {
+    return ScalarInteger(H5Aexists(HID(h5_obj), name));
+}
+
+
+/** Iteration **/
 typedef struct __index_and_SEXP__ {
     int  i;
     SEXP s;
