@@ -105,7 +105,7 @@ int _h5R_get_nelts(SEXP h5_obj) {
     int ndims = _h5R_get_ndims(h5_obj);
     hid_t space = _h5R_get_space(h5_obj);
     
-    hsize_t* dims = (hsize_t* ) Calloc(ndims, hsize_t*);
+    hsize_t* dims = (hsize_t* ) Calloc(ndims, hsize_t);
     H5Sget_simple_extent_dims(space, dims, NULL);
     
     for (i = 0; i < ndims; i++)
@@ -122,7 +122,7 @@ SEXP h5R_get_dims(SEXP h5_obj) {
     int ndims = _h5R_get_ndims(h5_obj);
     hid_t space = _h5R_get_space(h5_obj);
 
-    hsize_t* dims = (hsize_t* ) Calloc(ndims, hsize_t*);
+    hsize_t* dims = (hsize_t* ) Calloc(ndims, hsize_t);
     H5Sget_simple_extent_dims(space, dims, NULL);
     
     PROTECT(res = allocVector(INTSXP, ndims)); 
