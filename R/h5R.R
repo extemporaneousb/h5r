@@ -42,18 +42,21 @@ hSlab <- function(start, width = NA, end = NA) {
 setMethod("length", "hSlab", function(x) {
   length(x@s)
 })
-setGeneric("start", function(x, ...) {
-  standardGeneric("start")
-})
-setMethod("start", "hSlab", function(x) {
-  x@s
-})
-setGeneric("width", function(x, ...) {
-  standardGeneric("width")
-})
-setMethod("width", "hSlab", function(x) {
-  x@w
-})
+
+
+## setGeneric("start", function(x, ...) {
+##   standardGeneric("start")
+## })
+## setMethod("start", "hSlab", function(x) {
+##   x@s
+## })
+
+## setGeneric("width", function(x, ...) {
+##   standardGeneric("width")
+## })
+## setMethod("width", "hSlab", function(x) {
+##   x@w
+## })
 
 
 H5File <- function(fileName) {
@@ -369,7 +372,7 @@ setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
   if (! ((nr == 1 && is.null(dim(x))) || (nr == length(dim(x)))))
     stop("Dimension mismatch: nrow(x) == length(dim(x))")
   
-  readSlab(x, start(i), width(i))
+  readSlab(x, i@s, i@w)
 })
 
 ##
