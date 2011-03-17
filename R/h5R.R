@@ -484,8 +484,142 @@ h5DatasetExists <- function(h5Obj, name) {
 h5AttributeExists <- function(h5Obj, name) {
   .Call("h5R_attribute_exists", .ePtr(h5Obj), name) == 1
 }
+ 
 
 
+################################################################
+## 
+## H5DataFrame interface
+##
+################################################################
+
+setClass("H5DataFrame", contains = "data.frame",
+         representation(h5File = "H5File",
+                        h5Datasets = "list"))
+
+H5DataFrame <- function(file, nms = NA) {
+  .getCols <- function(h5) {
+    nms <- names(listH5Contents(h5))
+    nms[nms != "."] 
+  }
+
+  h5File <- H5File(file)
+  if (is.na(nms)) {
+    nms <- .getCols(h5File)
+  }
+  h5Datasets <- lapply(nms, function(nm) {
+    getH5Dataset(h5File, nm)
+  })
+  names(h5Datasets) <- nms
+
+  stopifnot(length(unique(sapply(h5Datasets, length))) == 1)
   
+  obj <- new("H5DataFrame")
+  obj@h5File <- h5File
+  obj@h5Datasets <- h5Datasets
+  return(obj)
+}
 
+setMethod("ncol", "H5DataFrame", function(x) {
+  length(x@h5Datasets)
+})
 
+setMethod("nrow", "H5DataFrame", function(x) {
+  length(x@h5Datasets[[1]])
+})
+
+setMethod("dim", "H5DataFrame", function(x) {
+  c(nrow(x), ncol(x))
+})
+
+setMethod("colnames", "H5DataFrame", function(x) {
+  names(x@h5Datasets)
+})
+
+setMethod("$", "H5DataFrame", function(x, name) {
+  if (! (name %in% names(x@h5Datasets))) {
+    return(NULL)
+  }
+  x[[name]]
+})
+
+setMethod("[", c("H5DataFrame", "ANY", "ANY"), function(x, i, j) {
+  missingI <- missingJ <- FALSE
+
+  if (missing(j)) missingJ <- TRUE
+  if (missing(i)) missingI <- TRUE
+
+  ## cat(paste("missingJ:", missingJ,
+  ##           "\nmissingI:", missingI,
+  ##           "\nclass  I:", if (! missingI) class(i) else "missing",
+  ##           "\nclass  J:", if (! missingJ) class(j) else "missing"), "\n")
+    
+  if (missingJ && missingI) {
+    ## [] -- return everything.
+    ## -> data.frame
+    as.data.frame(lapply(colnames(x), function(n) {
+      x@h5Datasets[[n]][]
+    }))
+  } else if (missingJ & !missingI) {
+    ## [i,] -- return i rows across all colummns
+    ## -> data.frame
+    z <- as.data.frame(lapply(colnames(x), function(n) {
+      x@h5Datasets[[n]][i]
+    }))
+    colnames(z) <- colnames(x)
+    z
+  } else if (!missingJ && !missingI) {
+    ## [i,j] -- return sub-matrix
+    ## -> data.frame | matrix
+    if (length(j) == 1) {
+      ## -> vector
+      x@h5Datasets[[j]][i]
+    } else {
+      ## -> data.frame
+      z <- as.data.frame(lapply(j, function(jj) {
+        (x@h5Datasets[[jj]])[i]
+      }))
+      colnames(z) <- colnames(x)[j]
+      z
+    }
+  } else if (! missingJ) {
+    if (length(j) == 1) {
+      ## -> vector
+      x@h5Datasets[[j]][]
+    } else {
+      ## -> data.frame
+      z <- as.data.frame(lapply(j, function(jj) {
+        (x@h5Datasets[[jj]])[]
+      }))
+      colnames(z) <- colnames(x)[j]
+      z
+    }
+  } else {
+    ## cat(paste("missingJ:", missingJ,
+    ##             "missingI:", missingI,
+    ##             "class  I:", class(i),
+    ##             "class  J:", class(i)))
+  }
+})
+
+setMethod("[[", c("H5DataFrame", "ANY", "ANY"), function(x, i, j) {
+   missingI <- missingJ <- FALSE
+   
+  if (missing(j)) missingJ <- TRUE
+  if (missing(i)) missingI <- TRUE
+
+  ## cat(paste("missingJ:", missingJ,
+  ##           "\nmissingI:", missingI,
+  ##           "\nclass  I:", if (! missingI) class(i) else "missing",
+  ##           "\nclass  J:", if (! missingJ) class(j) else "missing"), "\n")
+
+   if (!missingI && missingJ) {
+     x@h5Datasets[[i]][]
+  }
+})
+
+setMethod("as.data.frame", "H5DataFrame", function(x) {
+  d <- as.data.frame(lapply(colnames(x), function(nm) x[[nm]]))
+  colnames(d) <- colnames(x)
+  return(d)
+})
