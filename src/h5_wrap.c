@@ -259,6 +259,7 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     return(dta);
 }
 
+
 SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     int __ERROR__ = 0;
     SEXP dta = R_NilValue;
@@ -336,6 +337,23 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     }
 
     return dta;
+}
+
+SEXP h5R_read_1d_slabs(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
+    int rlen = length(_counts);
+    SEXP r_lst; 
+    int i;
+    int* counts = INTEGER(_counts);
+    int* offsets = INTEGER(_offsets);
+    
+    PROTECT(r_lst = allocVector(VECSXP, rlen));
+    
+    for (i = 0; i < rlen; i++) {
+	SET_VECTOR_ELT(r_lst, i, h5R_read_slab(h5_dataset, ScalarInteger(offsets[i]), ScalarInteger(counts[i])));
+    }
+
+    UNPROTECT(1);
+    return(r_lst);
 }
 
   

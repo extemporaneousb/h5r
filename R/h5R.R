@@ -385,6 +385,10 @@ setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
   if (! is.null(dim(h5Dataset))) aperm(d) else d
 }
 
+read1DSlabs <- function(h5Dataset, offsets, dims) {
+  .Call("h5R_read_1d_slabs", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
+}
+
 readSlab <- function(h5Dataset, offsets, dims) {
   if (! all((offsets + dims - 1) <= dim(h5Dataset)))
     stop("error invalid slice specification in readSlab.")
