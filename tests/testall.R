@@ -220,10 +220,14 @@ TH("hSlab time", {
   }))
 })
 
-
-dim(ds2)
-
-
+TH("slabs equal", all(readSlab(ds6, 1, 10) == read1DSlabs(ds6, 1, 10)[[1]]))
+TH("slabs equal iteration", {
+  r1 <- read1DSlabs(ds6, 1:10, rep(5, 10))
+  r2 <- lapply(1:10, function(a) {
+    as.integer(readSlab(ds6, a, 5))
+  })
+  all.equal(r1, r2)
+})
 
 
 TH(action = "print")

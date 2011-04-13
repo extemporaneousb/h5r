@@ -43,22 +43,6 @@ setMethod("length", "hSlab", function(x) {
   length(x@s)
 })
 
-
-## setGeneric("start", function(x, ...) {
-##   standardGeneric("start")
-## })
-## setMethod("start", "hSlab", function(x) {
-##   x@s
-## })
-
-## setGeneric("width", function(x, ...) {
-##   standardGeneric("width")
-## })
-## setMethod("width", "hSlab", function(x) {
-##   x@w
-## })
-
-
 H5File <- function(fileName) {
   new("H5File", fileName)
 }
