@@ -15,6 +15,12 @@ all(getH5Dataset(g1, "ds2")[] == a)
 createH5Dataset( g1, "ds4", rbind(rep(1, 10), rep(2, 10)))
 getH5Dataset(g1, "ds4")[]
 
+ds = createH5Dataset( g1, "ds4", data = NULL, dim = NULL, chunks = NULL)
+ds[1:10, 1:10] <- dta
+ds[] 
+
+
+
 createH5Attribute( h5e, "attr1", 1:4 ) 
 
 
