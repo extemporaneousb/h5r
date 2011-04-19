@@ -43,8 +43,8 @@ setMethod("length", "hSlab", function(x) {
   length(x@s)
 })
 
-H5File <- function(fileName) {
-  new("H5File", fileName)
+H5File <- function(fileName, mode = 'r') {
+  new("H5File", fileName, mode)
 }
 
 .ePtr <- function(obj) obj@ePtr
@@ -94,6 +94,16 @@ setGeneric("getH5Dataset", function(h5Obj, datasetName, ...) {
   standardGeneric("getH5Dataset")
 })
 
+createH5Dataset <- function(h5Obj, datasetName, data) {
+  if (is.null(d <- dim(data))) {
+    d <- length(data)
+  } else {
+    data <- aperm(data)
+  }
+  .Call("h5R_write_dataset", .ePtr(h5Obj), datasetName,
+        as.integer(data), as.integer(d))
+}
+
 setGeneric("getH5Attribute", function(h5Obj, attrName, ...) {
   standardGeneric("getH5Attribute")
 })
@@ -105,6 +115,17 @@ setMethod("getH5Group", c("H5Obj", "character"), function(h5Obj, groupName) {
   .H5Group(x, groupName)
 })
 
+createH5Group <- function(h5Obj, groupName) {
+  ## XXX: Should add a check to see if group exists.
+  z <- .Call("h5R_create_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5r')
+  
+  if (z == 0) {
+    return(getH5Group(h5Obj, groupName))
+  } else {
+    stop(paste("Unable to create group:", groupName))
+  }
+}
+
 setMethod("getH5Dim", "H5DataContainer", function(h5Obj) {
   .Call('h5R_get_dims', .ePtr(h5Obj), PACKAGE = 'h5r')
 })
@@ -113,16 +134,22 @@ setMethod("getH5Type", "H5DataContainer", function(h5Obj) {
   .Call("h5R_get_type", .ePtr(h5Obj), PACKAGE = 'h5r')
 })
 
-setMethod("initialize", c("H5File"), function(.Object, fileName) {
+setMethod("initialize", c("H5File"), function(.Object, fileName, mode = c('r', 'w')) {
   ## This is obscene. I have to do this because somehow Subclasses
   ## call this at *class* instantiation time. 
   if (missing(fileName))
     return(.Object)
 
+  mode <- match.arg(mode)
+  
+  if (! file.exists(fileName) && mode == 'w') {
+    .Call("h5R_finalizer", .Call("h5R_create", fileName, package = "h5R"))
+  }
+    
   if (! file.exists(fileName)) {
     stop(paste("Unable to open file:", fileName, "does not exist."))
   }
-  x <- .Call("h5R_open", fileName, package = "h5R")
+  x <- .Call("h5R_open", fileName, if(mode == 'r') as.integer(0) else as.integer(1), package = "h5R")
 
   if (is.null(x)) {
     stop(paste("Problem opening file:", fileName))

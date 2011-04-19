@@ -40,12 +40,23 @@ SEXP _h5R_make_holder (hid_t id, int is_file) {
     return e_ptr;
 }
 
-SEXP h5R_open(SEXP filename) {
-    return _h5R_make_holder(H5Fopen(NM(filename), H5F_ACC_RDONLY, H5P_DEFAULT), 1);
+SEXP h5R_open(SEXP filename, SEXP mode) {
+    int _mode_ = (INTEGER(mode)[0] == 1) ? H5F_ACC_RDWR : H5F_ACC_RDONLY;
+    return _h5R_make_holder(H5Fopen(NM(filename), _mode_, H5P_DEFAULT), 1);
+}
+
+SEXP h5R_create(SEXP filename) {
+    return _h5R_make_holder(H5Fcreate(NM(filename), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT), 1);
 }
 
 SEXP h5R_get_group(SEXP h5_obj, SEXP group_name) {
     return _h5R_make_holder(H5Gopen(HID(h5_obj), NM(group_name), H5P_DEFAULT), 0);
+}
+
+SEXP h5R_create_group(SEXP h5_obj, SEXP group_name) {
+    hid_t group = H5Gcreate(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    H5Gclose(group);
+    return ScalarInteger(0);
 }
 
 SEXP h5R_get_dataset(SEXP h5_obj, SEXP dataset_name) {
@@ -257,6 +268,24 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     UNPROTECT(1);
 
     return(dta);
+}
+
+SEXP h5R_write_dataset(SEXP h5_obj, SEXP name, SEXP data, SEXP dims) {
+    Rprintf("length dims: %d\n", length(dims));
+    int i;
+    for (i = 0; i < length(dims); i++) {
+	Rprintf("length dim[%d]=%d\n", i, INTEGER(dims)[i]);
+    }
+
+    hsize_t* cdims = (hsize_t*) Calloc(length(dims), hsize_t);
+    for (i = 0; i < length(dims); i++)
+	cdims[i] = INTEGER(dims)[i];
+
+    hid_t space = H5Screate_simple(length(dims), cdims, cdims);
+    hid_t ds = H5Dcreate(HID(h5_obj), NM(name), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    H5Dwrite(ds, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, INTEGER(data));
+
+    return(ScalarInteger(0));
 }
 
 
