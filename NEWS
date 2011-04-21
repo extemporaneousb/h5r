@@ -1,5 +1,22 @@
         **************************************************
         *                                                *
+        *              1.1 SERIES NEWS                   *
+        *                                                *
+        **************************************************
+
+
+                CHANGES IN h5r VERSION 1.1
+
+NEW FEATURES
+    o Added native ability to read sets of 1-D slabs.
+    o Added basic writing capabilities
+
+BUG FIXES
+    o 
+
+
+        **************************************************
+        *                                                *
         *              1.0 SERIES NEWS                   *
         *                                                *
         **************************************************

@@ -19,10 +19,17 @@ void h5R_finalizer(SEXP h5_obj) {
     h5_holder* h = (h5_holder*) R_ExternalPtrAddr(h5_obj);
 
     if (! h) return;
-    if (h->is_file)
+    if (h->is_file == 1) {
+	H5Fflush(HID(h5_obj), H5F_SCOPE_GLOBAL);
 	H5Fclose(HID(h5_obj));
- 
+    }
+
     Free(h);
+}
+
+SEXP h5R_flush(SEXP h5_file) {
+    H5Fflush(HID(h5_file), H5F_SCOPE_GLOBAL);
+    return ScalarInteger(0);
 }
 
 SEXP _h5R_make_holder (hid_t id, int is_file) {
@@ -56,6 +63,7 @@ SEXP h5R_get_group(SEXP h5_obj, SEXP group_name) {
 SEXP h5R_create_group(SEXP h5_obj, SEXP group_name) {
     hid_t group = H5Gcreate(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     H5Gclose(group);
+    
     return ScalarInteger(0);
 }
 
@@ -179,7 +187,6 @@ int _h5R_get_size (SEXP h5_obj) {
     return s;
 }
 
-
 SEXP _h5R_read_vlen_str(SEXP h5_obj) {
     int __ERROR__ = 0;
     int i = -1;
@@ -270,22 +277,110 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
     return(dta);
 }
 
-SEXP h5R_write_dataset(SEXP h5_obj, SEXP name, SEXP data, SEXP dims) {
-    Rprintf("length dims: %d\n", length(dims));
-    int i;
+hid_t _h5R_get_memtype(SEXP h5_type) {
+    hid_t memtype = -1;
+
+    switch (INTEGER(h5_type)[0]) {
+    case H5T_INTEGER: 
+	memtype = H5T_NATIVE_INT;
+	break;
+    case H5T_FLOAT:
+	memtype = H5T_NATIVE_DOUBLE;
+	break;
+    case H5T_STRING:
+	// clearly we'll wait on this.
+    default:
+	error("Unsupported class in %s.\n", __func__);
+    }
+    return memtype;
+}
+
+
+SEXP h5R_create_dataset(SEXP h5_obj, SEXP name, SEXP h5_type, SEXP dims, SEXP chunks) {
+    int i; 
+    
+    hsize_t* current_dims = (hsize_t*) Calloc(length(dims), hsize_t);
+    hsize_t* max_dims = (hsize_t*) Calloc(length(dims), hsize_t);
+    hsize_t* chunk_lens = (hsize_t*) Calloc(length(chunks), hsize_t);
+
     for (i = 0; i < length(dims); i++) {
-	Rprintf("length dim[%d]=%d\n", i, INTEGER(dims)[i]);
+	current_dims[i] = INTEGER(dims)[i];
+	max_dims[i]     = H5S_UNLIMITED;
+	chunk_lens[i]   = INTEGER(chunks)[i];
+    }
+    
+    hid_t cparms = H5Pcreate(H5P_DATASET_CREATE);
+    H5Pset_chunk(cparms, length(chunks), chunk_lens);
+    
+    hid_t dataspace = H5Screate_simple(length(dims), current_dims, max_dims);
+    hid_t dataset   = H5Dcreate(HID(h5_obj), NM(name), _h5R_get_memtype(h5_type), 
+				dataspace, H5P_DEFAULT, cparms, H5P_DEFAULT);
+    
+    H5Pclose(cparms);
+    H5Dclose(dataset);
+    H5Sclose(dataspace);
+    Free(max_dims);
+    Free(current_dims);
+    Free(chunk_lens);
+  
+    return ScalarInteger(0);
+}
+
+SEXP h5R_write_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts, SEXP data) {
+    int __ERROR__ = 0;
+    hid_t space = -1, memspace = -1, memtype = -1;
+    int i; 
+    void* _data; 
+
+    int* offsets  = INTEGER(_offsets);
+    int* counts   = INTEGER(_counts);
+
+    /** I'm surprised I have to do this, but it seems to be necessary. **/
+    hsize_t* _h_offsets = (hsize_t*) Calloc(length(_counts), hsize_t);
+    hsize_t* _h_counts  = (hsize_t*) Calloc(length(_counts), hsize_t);
+
+    for (i = 0; i < length(_counts); i++) {
+	_h_offsets[i] = offsets[i];
+	_h_counts[i]  = counts[i];
     }
 
-    hsize_t* cdims = (hsize_t*) Calloc(length(dims), hsize_t);
-    for (i = 0; i < length(dims); i++)
-	cdims[i] = INTEGER(dims)[i];
+    space = _h5R_get_space(h5_dataset);
+    H5Sselect_hyperslab(space, H5S_SELECT_SET, _h_offsets, NULL, _h_counts, NULL);
+    memspace = H5Screate_simple(length(_counts), _h_counts, NULL);
 
-    hid_t space = H5Screate_simple(length(dims), cdims, cdims);
-    hid_t ds = H5Dcreate(HID(h5_obj), NM(name), H5T_NATIVE_INT, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    H5Dwrite(ds, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, INTEGER(data));
+    switch (INTEGER(h5R_get_type(h5_dataset))[0]) {
+    case H5T_INTEGER: 
+	memtype = H5T_NATIVE_INT;
+	_data = (void*) INTEGER(data);
+	break;
+    case H5T_FLOAT:
+	memtype = H5T_NATIVE_DOUBLE;
+	_data = (void*) REAL(data);
+	break;
+    case H5T_STRING:
+	memtype = H5Tcopy (H5T_C_S1);
+	H5Tset_size (memtype, H5T_VARIABLE);   
+	break;
+    default:
+	__ERROR__ = 1;
+    }
+    
 
-    return(ScalarInteger(0));
+    if (__ERROR__ == 0) {
+	H5Dwrite(HID(h5_dataset), memtype, memspace, space, H5P_DEFAULT, _data);
+    }
+
+    /** clean up. **/
+    Free(_h_offsets);
+    Free(_h_counts);
+    H5Sclose(memspace);
+    H5Sclose(space);
+    
+    if (__ERROR__ == 1) {
+	error("Unsupported class in %s\n", __func__);
+    }
+
+    return R_NilValue;
 }
 
 
@@ -389,7 +484,6 @@ SEXP h5R_read_1d_slabs(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 
     return(r_lst);
 }
-
   
 SEXP h5R_read_attr(SEXP h5_attr) {
     SEXP dta = R_NilValue;
@@ -422,8 +516,6 @@ SEXP h5R_read_attr(SEXP h5_attr) {
 /**
  * File content inspection and iteration.
  */
-
-/** Inspection **/
 SEXP h5R_attribute_exists(SEXP h5_obj, SEXP name) {
     return(ScalarInteger(H5Aexists(HID(h5_obj), NM(name))));
 }
@@ -432,12 +524,12 @@ SEXP h5R_dataset_exists(SEXP h5_obj, SEXP name) {
     return(ScalarInteger(H5Lexists(HID(h5_obj), NM(name), H5P_DEFAULT)));
 }
 
+
 /** Iteration **/
 typedef struct __index_and_SEXP__ {
     int  i;
     SEXP s;
 } __index_and_SEXP__;
-
 
 herr_t _h5R_count_func(hid_t loc_id, const char *name, const H5O_info_t *info,
 		       void *operator_data) {
@@ -513,7 +605,6 @@ SEXP h5R_list_attributes(SEXP h5_obj) {
 
 herr_t _h5R_name_exists(hid_t loc_id, const char *name, const H5O_info_t *info,
 			void *operator_data) {
-
     const char* probe = (const char*) operator_data;
 
     if (strcmp(name, probe) == 0) {

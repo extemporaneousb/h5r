@@ -5,11 +5,14 @@
 ## ##############################################################################
 
 ## These are defined in H5Tpublic.h
-.h5Types <- c("integer", "numeric", "time", "character", "logical")
+.h5Types <- c("integer", "double", "time", "character", "logical")
 
 setClass("H5Obj", representation(ePtr = "externalptr"))
-setClass("H5File", contains = "H5Obj", representation(fileName = "character"))
-setClass("H5Group", contains = "H5Obj", representation(name = "character"))
+setClass("H5Container", contains = "H5Obj")
+setClass("H5File", contains = "H5Container",
+         representation(fileName = "character"))
+setClass("H5Group", contains = "H5Container",
+         representation(name = "character"))
 
 setClassUnion("envOrNULL", c("environment", "NULL"))
 setClass("H5DataContainer", contains = "H5Obj",
@@ -17,31 +20,7 @@ setClass("H5DataContainer", contains = "H5Obj",
                         h5Type = "integer", .data = "envOrNULL"))
 setClass("H5Dataset", contains = "H5DataContainer")
 setClass("H5Attribute", contains = "H5DataContainer")
-
 setClass("hSlab", representation = representation(s = "integer", w = "integer"))
-
-hSlab <- function(start, width = NA, end = NA) {
-  stopifnot(length(start) == length(width) || length(start) == length(end))
-
-  if (any(is.na(end)) & any(is.na(width))) {
-    stop("Must specify either end or width.")
-  } else {
-    if(any(is.na(end))) {
-      width <- width
-    }
-    else {
-      width <- (end - start + 1)
-    }
-  }
-  obj <- new("hSlab")
-  obj@s <- as.integer(start)
-  obj@w <- as.integer(width)
-  return(obj)
-}
-
-setMethod("length", "hSlab", function(x) {
-  length(x@s)
-})
 
 H5File <- function(fileName, mode = 'r') {
   new("H5File", fileName, mode)
@@ -78,53 +57,20 @@ H5File <- function(fileName, mode = 'r') {
   return(! is.null(h5Dataset@.data))
 }
 
-setGeneric("getH5Group", function(h5Obj, groupName, ...) {
-  standardGeneric("getH5Group")
-})
+setGeneric("getH5Group", function(h5Obj, groupName, ...) standardGeneric("getH5Group"))
+setGeneric("getH5Dim", function(h5Obj, ...) standardGeneric("getH5Dim"))
+setGeneric("getH5Type", function(h5Obj, ...) standardGeneric("getH5Type"))
+setGeneric("getH5Dataset", function(h5Obj, datasetName, ...) standardGeneric("getH5Dataset"))
+setGeneric("getH5Attribute", function(h5Obj, attrName, ...) standardGeneric("getH5Attribute"))
+setGeneric("createH5Group", function(h5Obj, groupName, ...) standardGeneric("createH5Group"))
+setGeneric("createH5Dataset", function(h5Obj, datasetName, ...) standardGeneric("createH5Dataset"))
+setGeneric("writeH5Data", function(h5Obj, ...) standardGeneric("writeH5Data"))
 
-setGeneric("getH5Dim", function(h5Obj, ...) {
-  standardGeneric("getH5Dim")
-})
-
-setGeneric("getH5Type", function(h5Obj, ...) {
-  standardGeneric("getH5Type")
-})
-
-setGeneric("getH5Dataset", function(h5Obj, datasetName, ...) {
-  standardGeneric("getH5Dataset")
-})
-
-createH5Dataset <- function(h5Obj, datasetName, data) {
-  if (is.null(d <- dim(data))) {
-    d <- length(data)
-  } else {
-    data <- aperm(data)
-  }
-  .Call("h5R_write_dataset", .ePtr(h5Obj), datasetName,
-        as.integer(data), as.integer(d))
-}
-
-setGeneric("getH5Attribute", function(h5Obj, attrName, ...) {
-  standardGeneric("getH5Attribute")
-})
-
-setMethod("getH5Group", c("H5Obj", "character"), function(h5Obj, groupName) {
+setMethod("getH5Group", c("H5Container", "character"), function(h5Obj, groupName) {
   if (is.null(x <- .Call("h5R_get_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5r')))
     stop(paste("Group:", groupName, "cannot be opened."))
-
   .H5Group(x, groupName)
 })
-
-createH5Group <- function(h5Obj, groupName) {
-  ## XXX: Should add a check to see if group exists.
-  z <- .Call("h5R_create_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5r')
-  
-  if (z == 0) {
-    return(getH5Group(h5Obj, groupName))
-  } else {
-    stop(paste("Unable to create group:", groupName))
-  }
-}
 
 setMethod("getH5Dim", "H5DataContainer", function(h5Obj) {
   .Call('h5R_get_dims', .ePtr(h5Obj), PACKAGE = 'h5r')
@@ -143,7 +89,7 @@ setMethod("initialize", c("H5File"), function(.Object, fileName, mode = c('r', '
   mode <- match.arg(mode)
   
   if (! file.exists(fileName) && mode == 'w') {
-    .Call("h5R_finalizer", .Call("h5R_create", fileName, package = "h5R"))
+    .Call("h5R_create", fileName, package = "h5R")
   }
     
   if (! file.exists(fileName)) {
@@ -175,12 +121,10 @@ setMethod("initialize", c("H5File"), function(.Object, fileName, mode = c('r', '
   return(o)
 }
 
-setMethod("getH5Dataset", c("H5Obj", "character"), function(h5Obj, datasetName,
-                                                            inMemory = FALSE) {
+setMethod("getH5Dataset", c("H5Container", "character"), function(h5Obj, datasetName, inMemory = FALSE) {
   if (is.null(x <- .Call("h5R_get_dataset", .ePtr(h5Obj), datasetName, PACKAGE = 'h5r'))) {
     stop(paste("Dataset:", datasetName, "cannot be opened."))
   }
- 
   o <- new("H5Dataset")
   o@ePtr <- x
   return(.initH5DataContainer(o, datasetName, inMemory))
@@ -190,12 +134,86 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   if (is.null(x <- .Call("h5R_get_attr", .ePtr(h5Obj), attrName, PACKAGE = 'h5r'))) {
      stop(paste("Attribute:", attrName, "cannot be opened."))
   }
-  
   o <- new("H5Attribute")
   o@ePtr <- x
   return(.initH5DataContainer(o, attrName, inMemory = TRUE))
 })
 
+##
+## Writing.
+##
+.flush <- function(h5Obj) {
+  .Call("h5R_flush", .ePtr(h5Obj))
+}
+
+setMethod("writeH5Data", c("H5Dataset"), function(h5Obj, data, offsets, extents) {
+  .Call("h5R_write_slab", .ePtr(h5Obj), as.integer(offsets), as.integer(extents), data)
+})
+
+setMethod("createH5Dataset", c("H5Container", "character"), function(h5Obj, datasetName, data,
+                                                                     dims, dType = c("integer", "double"),
+                                                                     chunkSizes = NA) {
+  mData <- missing(data)
+  mDims <- missing(dims)
+  mType <- missing(dType)
+  mChnk <- missing(chunkSizes)
+
+  if (mData && (mDims || mType)) {
+    stop("Must specify either data or dimensions and type.")
+  }
+
+  if (mData && mType) {
+    storage.mode(data) <- dType
+  }
+  
+  if (! mData) { 
+    if (is.null(dim(data))) {
+      dims <- length(data)
+    } else {
+      ## note order.
+      dims <- dim(data)
+      data <- aperm(data)
+    }
+    dType <- storage.mode(data)
+  } else {
+    dType <- match.arg(dType)
+  }
+  iType <- as.integer(match(dType, .h5Types) - 1)
+
+  if (is.na(iType)) {
+    stop("Type is not resolveable.")
+  }
+  dims  <- as.integer(dims)
+  if (mChnk)
+    chunkSizes <- rep(4096, length(dims))
+
+  .Call("h5R_create_dataset", .ePtr(h5Obj), datasetName, iType, dims, as.integer(chunkSizes))
+ 
+  if (! mData) {
+    writeH5Data(getH5Dataset(h5Obj, datasetName), data,
+                as.integer(rep(0L, length(dims))),
+                as.integer(dims))
+  }
+  .flush(h5Obj)
+  
+  return(getH5Dataset(h5Obj, datasetName))
+})
+
+setMethod("createH5Group", c("H5Container", "character"), function(h5Obj, groupName) {
+  if (h5GroupExists(h5Obj, groupName))
+    stop(paste("Group:", groupName, "exists."))
+  if (.Call("h5R_create_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5r') == 0) {
+    .flush(h5Obj)
+    return(getH5Group(h5Obj, groupName))
+  } else {
+    stop(paste("Unable to create group:", groupName))
+  }
+})
+
+
+##
+## The whole slicing infrastructure.
+## 
 .internalSlice <- function(x, i, j, ..., drop = TRUE) {
   if (!.hasData(x)) {
     .putData(x, .loadDataset(x))
@@ -373,8 +391,8 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
   }
 })
 
-## This function is written to leverage the possibility of fast contiguous
-## range access.
+## This function is written to leverage the possibility of fast
+## contiguous range access.
 setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
   if (.inMemory(x))
     stop("Not implemented for inMemory datasets.")
@@ -490,6 +508,10 @@ listH5Contents <- function(h5Obj) {
   })
 
   return(lst)
+}
+
+h5GroupExists <- function(h5Obj, name) {
+  .Call("h5R_dataset_exists", .ePtr(h5Obj), name) == 1
 }
 
 h5DatasetExists <- function(h5Obj, name) {
@@ -637,4 +659,31 @@ setMethod("as.data.frame", "H5DataFrame", function(x) {
   d <- as.data.frame(lapply(colnames(x), function(nm) x[[nm]]))
   colnames(d) <- colnames(x)
   return(d)
+})
+
+
+##
+## hSlab stuff.
+##
+hSlab <- function(start, width = NA, end = NA) {
+  stopifnot(length(start) == length(width) || length(start) == length(end))
+
+  if (any(is.na(end)) & any(is.na(width))) {
+    stop("Must specify either end or width.")
+  } else {
+    if(any(is.na(end))) {
+      width <- width
+    }
+    else {
+      width <- (end - start + 1)
+    }
+  }
+  obj <- new("hSlab")
+  obj@s <- as.integer(start)
+  obj@w <- as.integer(width)
+  return(obj)
+}
+
+setMethod("length", "hSlab", function(x) {
+  length(x@s)
 })
