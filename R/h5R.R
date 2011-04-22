@@ -7,6 +7,11 @@
 ## These are defined in H5Tpublic.h
 .h5Types <- c("integer", "double", "time", "character", "logical")
 
+## ##############################################################################
+##
+## Class Definitions
+##
+## ##############################################################################
 setClass("H5Obj", representation(ePtr = "externalptr"))
 setClass("H5Container", contains = "H5Obj")
 setClass("H5File", contains = "H5Container",
@@ -21,6 +26,24 @@ setClass("H5DataContainer", contains = "H5Obj",
 setClass("H5Dataset", contains = "H5DataContainer")
 setClass("H5Attribute", contains = "H5DataContainer")
 setClass("hSlab", representation = representation(s = "integer", w = "integer"))
+setClass("H5DataFrame", contains = "data.frame", representation(h5File = "H5File", h5Datasets = "list"))
+
+## ##############################################################################
+##
+## Generics Definitions
+##
+## ##############################################################################
+setGeneric("getH5Group", function(h5Obj, groupName, ...) standardGeneric("getH5Group"))
+setGeneric("getH5Dim", function(h5Obj, ...) standardGeneric("getH5Dim"))
+setGeneric("getH5Type", function(h5Obj, ...) standardGeneric("getH5Type"))
+setGeneric("getH5Dataset", function(h5Obj, datasetName, ...) standardGeneric("getH5Dataset"))
+setGeneric("getH5Attribute", function(h5Obj, attrName, ...) standardGeneric("getH5Attribute"))
+setGeneric("createH5Group", function(h5Obj, groupName, ...) standardGeneric("createH5Group"))
+setGeneric("createH5Dataset", function(h5Obj, datasetName, ...) standardGeneric("createH5Dataset"))
+setGeneric("createH5Attribute", function(h5Obj, attrName, attrValue, ...) standardGeneric("createH5Attribute"))
+setGeneric("writeH5Data", function(h5Obj, ...) standardGeneric("writeH5Data"))
+setGeneric("readH5Data", function(h5Obj, ...) standardGeneric("readH5Data"))
+setGeneric("deleteH5Obj", function(h5Obj, h5ObjName, ...) standardGeneric("deleteH5Obj"))
 
 H5File <- function(fileName, mode = 'r') {
   new("H5File", fileName, mode)
@@ -56,15 +79,6 @@ H5File <- function(fileName, mode = 'r') {
 .inMemory <- function(h5Dataset) {
   return(! is.null(h5Dataset@.data))
 }
-
-setGeneric("getH5Group", function(h5Obj, groupName, ...) standardGeneric("getH5Group"))
-setGeneric("getH5Dim", function(h5Obj, ...) standardGeneric("getH5Dim"))
-setGeneric("getH5Type", function(h5Obj, ...) standardGeneric("getH5Type"))
-setGeneric("getH5Dataset", function(h5Obj, datasetName, ...) standardGeneric("getH5Dataset"))
-setGeneric("getH5Attribute", function(h5Obj, attrName, ...) standardGeneric("getH5Attribute"))
-setGeneric("createH5Group", function(h5Obj, groupName, ...) standardGeneric("createH5Group"))
-setGeneric("createH5Dataset", function(h5Obj, datasetName, ...) standardGeneric("createH5Dataset"))
-setGeneric("writeH5Data", function(h5Obj, ...) standardGeneric("writeH5Data"))
 
 setMethod("getH5Group", c("H5Container", "character"), function(h5Obj, groupName) {
   if (is.null(x <- .Call("h5R_get_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5r')))
@@ -151,8 +165,15 @@ setMethod("writeH5Data", c("H5Dataset"), function(h5Obj, data, offsets, extents)
 })
 
 setMethod("createH5Dataset", c("H5Container", "character"), function(h5Obj, datasetName, data,
-                                                                     dims, dType = c("integer", "double"),
-                                                                     chunkSizes = NA) {
+                                                                     dims, dType = c("integer", "double", "character"),
+                                                                     chunkSizes = NA, overwrite = TRUE) {
+  if (h5DatasetExists(h5Obj, datasetName)) {
+    if (! overwrite)
+      stop(paste("Dataset:", datasetName, "already exists."))
+    else
+      deleteH5Obj(h5Obj, datasetName)
+  }
+
   mData <- missing(data)
   mDims <- missing(dims)
   mType <- missing(dType)
@@ -199,9 +220,16 @@ setMethod("createH5Dataset", c("H5Container", "character"), function(h5Obj, data
   return(getH5Dataset(h5Obj, datasetName))
 })
 
-setMethod("createH5Group", c("H5Container", "character"), function(h5Obj, groupName) {
-  if (h5GroupExists(h5Obj, groupName))
-    stop(paste("Group:", groupName, "exists."))
+setMethod("createH5Group", c("H5Container", "character"), function(h5Obj, groupName,
+                                                                   overwrite = TRUE) {
+  if (h5GroupExists(h5Obj, groupName)) {
+    if (! overwrite) {
+      stop(paste("Group:", groupName, "exists."))
+    } else {
+      deleteH5Obj(h5Obj, groupName)
+    }
+  }
+  
   if (.Call("h5R_create_group", .ePtr(h5Obj), groupName, PACKAGE = 'h5r') == 0) {
     .flush(h5Obj)
     return(getH5Group(h5Obj, groupName))
@@ -210,6 +238,14 @@ setMethod("createH5Group", c("H5Container", "character"), function(h5Obj, groupN
   }
 })
 
+setMethod("createH5Attribute", c("H5Obj"), function(h5Obj, attrName, attrValue) {
+  stop("Not implemented yet.")
+})
+
+setMethod("deleteH5Obj", c("H5Container"), function(h5Obj, h5ObjName) {
+  .Call("h5R_delete_object", .ePtr(h5Obj), as.character(h5ObjName))
+  .flush(h5Obj)
+})
 
 ##
 ## The whole slicing infrastructure.
@@ -408,7 +444,7 @@ setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
 ## Note: the two reverses.
 ##
 .loadDataset <- function(h5Dataset) {
-  d <- readDataAsVector(h5Dataset)
+  d <- readH5Data(h5Dataset)
   dim(d) <- rev(dim(h5Dataset))
   
   if (! is.null(dim(h5Dataset))) aperm(d) else d
@@ -428,15 +464,22 @@ readSlab <- function(h5Dataset, offsets, dims) {
   if (! is.null(dim(h5Dataset))) aperm(d) else d
 }
 
-setGeneric("readDataAsVector", function(h5Obj, ...) {
-  standardGeneric("readDataAsVector")
-})
+readPoints <- function(h5Dataset, idxs) {
+  if (is.null(dim(idxs))) {
+    nr <- length(idxs)
+    nc <- 1
+  } else {
+    nr <- nrow(idxs)
+    nc <- ncol(idxs)
+  }
+  .Call("h5R_read_points", .ePtr(h5Dataset), as.integer(idxs), as.integer(nr), as.integer(nc))
+}
 
-setMethod("readDataAsVector", "H5Dataset", function(h5Obj) {
+setMethod("readH5Data", "H5Dataset", function(h5Obj) {
   .Call('h5R_read_dataset', .ePtr(h5Obj), PACKAGE = 'h5r')
 })
 
-setMethod("readDataAsVector", "H5Attribute", function(h5Obj) {
+setMethod("readH5Data", "H5Attribute", function(h5Obj) {
   .Call('h5R_read_attr', .ePtr(h5Obj), PACKAGE = 'h5r')
 })
 
@@ -529,11 +572,6 @@ h5AttributeExists <- function(h5Obj, name) {
 ## H5DataFrame interface
 ##
 ################################################################
-
-setClass("H5DataFrame", contains = "data.frame",
-         representation(h5File = "H5File",
-                        h5Datasets = "list"))
-
 H5DataFrame <- function(file, nms = NA) {
   .getCols <- function(h5) {
     nms <- names(listH5Contents(h5))

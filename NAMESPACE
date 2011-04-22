@@ -17,7 +17,7 @@ exportMethods(getH5Group,
               getH5Type,
               getH5Dataset,
               getH5Attribute,
-              readDataAsVector,
+              readH5Data,
               show,
               ncol,
               nrow)
