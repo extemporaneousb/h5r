@@ -74,6 +74,31 @@ H5File <- function(fileName, mode = 'r') {
   return(o)
 }
 
+.initH5DataContainer <- function(o, name, inMemory) {
+  o@name <- name
+  o@h5Type <- getH5Type(o)
+  o@dims <- getH5Dim(o)
+  
+  if (! inMemory) {
+    o@.data <- NULL
+  } else {
+    o@.data <- new.env(parent = emptyenv(), hash = TRUE)
+  }
+  return(o)
+}
+
+.H5Attribute <- function(ep, name, inMemory = TRUE) {
+  o <- new("H5Attribute")
+  o@ePtr <- ep
+  return(.initH5DataContainer(o, name, inMemory = inMemory))
+}
+
+.H5Dataset <- function(ep, name, inMemory = FALSE) {
+  o <- new("H5Dataset")
+  o@ePtr <- ep
+  return(.initH5DataContainer(o, name, inMemory = inMemory))
+}
+
 .hasData <- function(h5DataContainer) {
   return(exists(".data", h5DataContainer@.data))
 }
@@ -115,7 +140,7 @@ setMethod("initialize", c("H5File"), function(.Object, fileName, mode = c('r', '
   if (! file.exists(fileName) && mode == 'w') {
     .myCall("h5R_create", fileName, package = "h5R")
   }
-    
+  
   if (! file.exists(fileName)) {
     stop(paste("Unable to open file:", fileName, "does not exist."))
   }
@@ -131,48 +156,30 @@ setMethod("initialize", c("H5File"), function(.Object, fileName, mode = c('r', '
   return(.Object)
 })
 
-.initH5DataContainer <- function(o, name, inMemory) {
-  o@name <- name
-  o@h5Type <- getH5Type(o)
-  o@dims <- getH5Dim(o)
-  
-  if (! inMemory) {
-    o@.data <- NULL
-  } else {
-    o@.data <- new.env(parent = emptyenv(), hash = TRUE)
-  }
-  
-  return(o)
-}
-
 setMethod("getH5Dataset", c("H5Container", "character"), function(h5Obj, datasetName, inMemory = FALSE) {
   if (is.null(x <- .myCall("h5R_get_dataset", .ePtr(h5Obj), datasetName))) {
     stop(paste("Dataset:", datasetName, "cannot be opened."))
   }
-  o <- new("H5Dataset")
-  o@ePtr <- x
-  return(.initH5DataContainer(o, datasetName, inMemory))
+  return(.H5Dataset(x, datasetName, inMemory = inMemory))
 })
 
 setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
   if (is.null(x <- .myCall("h5R_get_attr", .ePtr(h5Obj), attrName))) {
-     stop(paste("Attribute:", attrName, "cannot be opened."))
+    stop(paste("Attribute:", attrName, "cannot be opened."))
   }
-  o <- new("H5Attribute")
-  o@ePtr <- x
-  return(.initH5DataContainer(o, attrName, inMemory = TRUE))
+  return(.H5Attribute(x, attrName, inMemory = TRUE))
 })
 
 ##
 ## Writing.
 ##
 .flush <- function(h5Obj) {
-    .myCall("h5R_flush", .ePtr(h5Obj))
+  .myCall("h5R_flush", .ePtr(h5Obj))
 }
 
 setMethod("writeH5Data", c("H5Dataset"), function(h5Obj, data, offsets, extents) {
-    storage.mode(data) <- h5r:::.h5Types[getH5Type(h5Obj) + 1]
-    .myCall("h5R_write_slab", .ePtr(h5Obj), as.integer(offsets - 1), as.integer(extents), data)
+  storage.mode(data) <- h5r:::.h5Types[getH5Type(h5Obj) + 1]
+  .myCall("h5R_write_slab", .ePtr(h5Obj), as.integer(offsets - 1), as.integer(extents), data)
 })
 
 setMethod("createH5Dataset", c("H5Container", "character"), function(h5Obj, datasetName, data,
@@ -219,16 +226,17 @@ setMethod("createH5Dataset", c("H5Container", "character"), function(h5Obj, data
   if (mChnk)
     chunkSizes <- rep(4096, length(dims))
 
-  .myCall("h5R_create_dataset", .ePtr(h5Obj), datasetName, iType, dims, as.integer(chunkSizes))
- 
+  h5Dataset <- .H5Dataset(.myCall("h5R_create_dataset", .ePtr(h5Obj), datasetName, iType, dims, as.integer(chunkSizes)),
+                          datasetName)
+  
   if (! mData) {
-    writeH5Data(getH5Dataset(h5Obj, datasetName), data,
-                as.integer(rep(1L, length(dims))),
-                as.integer(dims))
+    if(! writeH5Data(h5Dataset, data,
+                     as.integer(rep(1L, length(dims))),
+                     as.integer(dims))) stop("Unable to write data.")
   }
   .flush(h5Obj)
   
-  return(getH5Dataset(h5Obj, datasetName))
+  return(h5Dataset)
 })
 
 setMethod("createH5Group", c("H5Container", "character"), function(h5Obj, groupName,
@@ -240,25 +248,18 @@ setMethod("createH5Group", c("H5Container", "character"), function(h5Obj, groupN
       deleteH5Obj(h5Obj, groupName)
     }
   }
-  
-  if (.myCall("h5R_create_group", .ePtr(h5Obj), groupName)) {
-      .flush(h5Obj)
-      return(getH5Group(h5Obj, groupName))
-  } else {
-      stop(paste("Unable to create group:", groupName))
-  }
+  h5Group <- .H5Group(.myCall("h5R_create_group", .ePtr(h5Obj), groupName), groupName)
+  .flush(h5Obj)
+  return(h5Group)
 })
 
 setMethod("createH5Attribute", c("H5Obj"), function(h5Obj, attrName, attrValue, overwrite = TRUE) {
-    ###
-    ## gota close everything. 
-    ## 
-    if (h5AttributeExists(h5Obj, attrName)) {
-      if (overwrite) {
-          deleteH5Attribute(h5Obj, attrName)
-      } else {
-          stop("Attribute exists, delete first, or specify overwrite.")
-      }
+  if (h5AttributeExists(h5Obj, attrName)) {
+    if (overwrite) {
+      deleteH5Attribute(h5Obj, attrName)
+    } else {
+      stop("Attribute exists, delete first, or specify overwrite.")
+    }
   }
   dType <- as.integer(match(storage.mode(attrValue), .h5Types) - 1)
   
@@ -273,22 +274,22 @@ setMethod("createH5Attribute", c("H5Obj"), function(h5Obj, attrName, attrValue, 
     nc <- ncol(attrValue)
   }
 
-  .Call("h5R_create_attribute", .ePtr(h5Obj), as.character(attrName), as.integer(dType),
-        as.integer(c(nr, nc)))
-  .flush(h5Obj)
-  .flush(getH5Attribute(h5Obj, attrName))
-  browser()
-  
-  .Call("h5R_write_attribute", .ePtr(getH5Attribute(h5Obj, attrName)), attrValue)
-  .flush(h5Obj)
+  h5Attr <- .H5Attribute(.Call("h5R_create_attribute", .ePtr(h5Obj), as.character(attrName),
+                               as.integer(dType),
+                               as.integer(c(nr, nc))), attrName)
+  if (.Call("h5R_write_attribute", .ePtr(h5Attr), attrValue) && .flush(h5Obj)) {
+    return(h5Attr)
+  } else {
+    stop("Unable to create attribute.")
+  }
 })
 
 setMethod("deleteH5Obj", c("H5Container"), function(h5Obj, h5ObjName) {
-    if (h5ObjectExists(h5Obj, h5ObjName)) {
-        return(.myCall("h5R_delete_object", .ePtr(h5Obj), as.character(h5ObjName)) && .flush(h5Obj))
-    } else {
-        return(FALSE)
-    }
+  if (h5ObjectExists(h5Obj, h5ObjName)) {
+    return(.myCall("h5R_delete_object", .ePtr(h5Obj), as.character(h5ObjName)) && .flush(h5Obj))
+  } else {
+    return(FALSE)
+  }
 })
 
 setMethod("deleteH5Attribute", c("H5Obj"), function(h5Obj, attrName) {
@@ -420,7 +421,7 @@ setMethod("[", "H5Dataset", function(x, i, j, ..., drop = TRUE) {
           .marginCheck(extras[[k-2]], dim(x)[k])
         }
       }
-       
+      
       ## need to specify the range to select.
       sel <- matrix(NA, nrow = length(dim(x)), ncol = 2)
       lst <- list(`[`, x = quote(dta))
@@ -601,21 +602,21 @@ listH5Contents <- function(h5Obj) {
 }
 
 h5ObjectExists <- function(h5Obj, name) {
-    .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
+  .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
 }
 
 h5GroupExists <- function(h5Obj, name) {
-    .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
+  .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
 }
 
 h5DatasetExists <- function(h5Obj, name) {
-    .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
+  .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
 }
 
 h5AttributeExists <- function(h5Obj, name) {
-    .myCall("h5R_attribute_exists", .ePtr(h5Obj), name)
+  .myCall("h5R_attribute_exists", .ePtr(h5Obj), name)
 }
- 
+
 
 
 ################################################################
@@ -679,7 +680,7 @@ setMethod("[", c("H5DataFrame", "ANY", "ANY"), function(x, i, j) {
   ##           "\nmissingI:", missingI,
   ##           "\nclass  I:", if (! missingI) class(i) else "missing",
   ##           "\nclass  J:", if (! missingJ) class(j) else "missing"), "\n")
-    
+  
   if (missingJ && missingI) {
     ## [] -- return everything.
     ## -> data.frame
@@ -729,8 +730,8 @@ setMethod("[", c("H5DataFrame", "ANY", "ANY"), function(x, i, j) {
 })
 
 setMethod("[[", c("H5DataFrame", "ANY", "ANY"), function(x, i, j) {
-   missingI <- missingJ <- FALSE
-   
+  missingI <- missingJ <- FALSE
+  
   if (missing(j)) missingJ <- TRUE
   if (missing(i)) missingI <- TRUE
 
@@ -739,8 +740,8 @@ setMethod("[[", c("H5DataFrame", "ANY", "ANY"), function(x, i, j) {
   ##           "\nclass  I:", if (! missingI) class(i) else "missing",
   ##           "\nclass  J:", if (! missingJ) class(j) else "missing"), "\n")
 
-   if (!missingI && missingJ) {
-     x@h5Datasets[[i]][]
+  if (!missingI && missingJ) {
+    x@h5Datasets[[i]][]
   }
 })
 

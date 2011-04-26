@@ -23,6 +23,20 @@ void h5R_finalizer(SEXP h5_obj) {
     if (h->is_file == 1) {
 	H5Fflush(HID(h5_obj), H5F_SCOPE_GLOBAL);
 	H5Fclose(HID(h5_obj));
+    } else {
+	switch (H5Iget_type(HID(h5_obj))) {
+	case H5I_DATASET:
+	    H5Dclose(HID(h5_obj));
+	    break;
+	case H5I_ATTR:
+	    H5Aclose(HID(h5_obj));
+	    break;
+	case H5I_GROUP:
+	    H5Gclose(HID(h5_obj));
+	    break;
+	default:
+	    error("Tried finalize type: %d.\n",  H5Iget_type(HID(h5_obj)));
+	}
     }
     Free(h);
 }
@@ -58,9 +72,7 @@ SEXP h5R_get_group(SEXP h5_obj, SEXP group_name) {
 }
 
 SEXP h5R_create_group(SEXP h5_obj, SEXP group_name) {
-    hid_t group = H5Gcreate(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    H5Gclose(group);
-    return SUCCESS;
+    return _h5R_make_holder(H5Gcreate(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT), 0);
 }
 
 SEXP h5R_get_dataset(SEXP h5_obj, SEXP dataset_name) {
@@ -301,8 +313,7 @@ SEXP h5R_create_dataset(SEXP h5_obj, SEXP name, SEXP h5_type, SEXP dims, SEXP ch
     default:
 	error("Unsupported class in %s.\n", __func__);
     }
- 
-    
+   
     hid_t cparms = H5Pcreate(H5P_DATASET_CREATE);
     H5Pset_chunk(cparms, length(chunks), chunk_lens);
     
@@ -311,13 +322,13 @@ SEXP h5R_create_dataset(SEXP h5_obj, SEXP name, SEXP h5_type, SEXP dims, SEXP ch
 				dataspace, H5P_DEFAULT, cparms, H5P_DEFAULT);
     
     H5Pclose(cparms);
-    H5Dclose(dataset);
     H5Sclose(dataspace);
+
     Free(max_dims);
     Free(current_dims);
     Free(chunk_lens);
   
-    return SUCCESS;
+    return _h5R_make_holder(dataset, 0);
 }
 
 SEXP h5R_write_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts, SEXP data) {
@@ -381,7 +392,6 @@ SEXP h5R_write_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts, SEXP data) {
 	error("Unsupported class in %s\n", __func__);
 	return FAILURE;
     }
-
     return SUCCESS;
 }
 
@@ -596,12 +606,11 @@ SEXP h5R_create_attribute(SEXP h5_obj, SEXP name, SEXP h5_type, SEXP dims) {
     hid_t attribute = H5Acreate(HID(h5_obj), NM(name), memtype, 
 				dataspace, H5P_DEFAULT, H5P_DEFAULT);
     
-    H5Aclose(attribute);
     H5Sclose(dataspace);
     Free(max_dims);
     Free(current_dims);
   
-    return SUCCESS;
+    return _h5R_make_holder(attribute, 0);
 }
 
 SEXP h5R_write_attribute(SEXP h5_attr, SEXP data) {
@@ -610,9 +619,7 @@ SEXP h5R_write_attribute(SEXP h5_attr, SEXP data) {
     char** tmp = NULL;
     int i;
     int atype = INTEGER(h5R_get_type(h5_attr))[0];
-
-    Rprintf("atype is: %d\n", atype);
-
+    
     switch (atype) {
     case H5T_INTEGER:
 	buf = INTEGER(data);
@@ -635,8 +642,11 @@ SEXP h5R_write_attribute(SEXP h5_attr, SEXP data) {
     }	
     H5Awrite(HID(h5_attr), memtype, buf);
     
-    // XXX FREE ! ! ! 
-    
+    if (atype == H5T_STRING) {
+	Free(tmp);
+	H5Tclose(memtype);
+    }
+    H5Aclose(HID(h5_attr));
     return SUCCESS;
 }
 

@@ -8,7 +8,8 @@ exportClasses(H5Obj,
               H5Group,
               H5Dataset,
               H5Attribute,
-              H5DataContainer)
+              H5DataContainer,
+              H5Container)
 
 importMethodsFrom(methods, show)
 
@@ -17,6 +18,11 @@ exportMethods(getH5Group,
               getH5Type,
               getH5Dataset,
               getH5Attribute,
+              createH5Group,
+              createH5Attribute,
+              writeH5Data,
+              deleteH5Obj,
+              deleteH5Attribute,
               readH5Data,
               show,
               ncol,

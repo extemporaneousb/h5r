@@ -52,7 +52,8 @@ TH("string dataset create 2", {
 })
 
 TH("attribute creation 1", {
-  createH5Attribute(g1, "jim", 20:1)
+  atr <- createH5Attribute(g1, "jim", 20:1)
+  atr@name == "jim"
 })
 TH("attribute fetch 1", {
   all(getH5Attribute(g1, "jim")[] == 20:1)
@@ -62,7 +63,8 @@ TH("attribute deletion 1", {
 })
 
 TH("attribute creation 2", {
-  createH5Attribute(g1, "jim", as.character(20:1))
+  atr <- createH5Attribute(g1, "jim", as.character(20:1))
+  atr@name == "jim"
 })
 TH("attribute fetch 2", {
   all(getH5Attribute(g1, "jim")[] == as.character(20:1))
