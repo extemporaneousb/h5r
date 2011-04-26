@@ -167,11 +167,12 @@ setMethod("getH5Attribute", c("H5Obj", "character"), function(h5Obj, attrName) {
 ## Writing.
 ##
 .flush <- function(h5Obj) {
-  .myCall("h5R_flush", .ePtr(h5Obj))
+    .myCall("h5R_flush", .ePtr(h5Obj))
 }
 
 setMethod("writeH5Data", c("H5Dataset"), function(h5Obj, data, offsets, extents) {
-  .myCall("h5R_write_slab", .ePtr(h5Obj), as.integer(offsets) - 1, as.integer(extents), data)
+    storage.mode(data) <- h5r:::.h5Types[getH5Type(h5Obj) + 1]
+    .myCall("h5R_write_slab", .ePtr(h5Obj), as.integer(offsets - 1), as.integer(extents), data)
 })
 
 setMethod("createH5Dataset", c("H5Container", "character"), function(h5Obj, datasetName, data,
@@ -240,24 +241,27 @@ setMethod("createH5Group", c("H5Container", "character"), function(h5Obj, groupN
     }
   }
   
-  if (.myCall("h5R_create_group", .ePtr(h5Obj), groupName) == 0) {
-    .flush(h5Obj)
-    return(getH5Group(h5Obj, groupName))
+  if (.myCall("h5R_create_group", .ePtr(h5Obj), groupName)) {
+      .flush(h5Obj)
+      return(getH5Group(h5Obj, groupName))
   } else {
-    stop(paste("Unable to create group:", groupName))
+      stop(paste("Unable to create group:", groupName))
   }
 })
 
 setMethod("createH5Attribute", c("H5Obj"), function(h5Obj, attrName, attrValue, overwrite = TRUE) {
-  if (h5AttributeExists(h5Obj, attrName)) {
-    if (overwrite) {
-      deleteH5Attribute(h5Obj, attrName)
-      .flush(h5Obj)
-    } else {
-      stop("Attribute exists, delete first, or specify overwrite.")
-    }
+    ###
+    ## gota close everything. 
+    ## 
+    if (h5AttributeExists(h5Obj, attrName)) {
+      if (overwrite) {
+          deleteH5Attribute(h5Obj, attrName)
+      } else {
+          stop("Attribute exists, delete first, or specify overwrite.")
+      }
   }
   dType <- as.integer(match(storage.mode(attrValue), .h5Types) - 1)
+  
   if (is.null(dim(attrValue))) {
     nr <- length(attrValue)
     nc <- 1
@@ -268,19 +272,27 @@ setMethod("createH5Attribute", c("H5Obj"), function(h5Obj, attrName, attrValue, 
     nr <- nrow(attrValue)
     nc <- ncol(attrValue)
   }
+
   .Call("h5R_create_attribute", .ePtr(h5Obj), as.character(attrName), as.integer(dType),
         as.integer(c(nr, nc)))
+  .flush(h5Obj)
+  .flush(getH5Attribute(h5Obj, attrName))
+  browser()
+  
   .Call("h5R_write_attribute", .ePtr(getH5Attribute(h5Obj, attrName)), attrValue)
   .flush(h5Obj)
 })
 
 setMethod("deleteH5Obj", c("H5Container"), function(h5Obj, h5ObjName) {
-  .myCall("h5R_delete_object", .ePtr(h5Obj), as.character(h5ObjName))
-  .flush(h5Obj)
+    if (h5ObjectExists(h5Obj, h5ObjName)) {
+        return(.myCall("h5R_delete_object", .ePtr(h5Obj), as.character(h5ObjName)) && .flush(h5Obj))
+    } else {
+        return(FALSE)
+    }
 })
 
 setMethod("deleteH5Attribute", c("H5Obj"), function(h5Obj, attrName) {
-  .myCall("h5R_delete_attribute", .ePtr(h5Obj), as.character(attrName))
+  .myCall("h5R_delete_attribute", .ePtr(h5Obj), as.character(attrName)) && .flush(h5Obj)
 })
 
 ##
@@ -588,16 +600,20 @@ listH5Contents <- function(h5Obj) {
   return(lst)
 }
 
+h5ObjectExists <- function(h5Obj, name) {
+    .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
+}
+
 h5GroupExists <- function(h5Obj, name) {
-  .myCall("h5R_dataset_exists", .ePtr(h5Obj), name) == 1
+    .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
 }
 
 h5DatasetExists <- function(h5Obj, name) {
-  .myCall("h5R_dataset_exists", .ePtr(h5Obj), name) == 1
+    .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
 }
 
 h5AttributeExists <- function(h5Obj, name) {
-  .myCall("h5R_attribute_exists", .ePtr(h5Obj), name) == 1
+    .myCall("h5R_attribute_exists", .ePtr(h5Obj), name)
 }
  
 

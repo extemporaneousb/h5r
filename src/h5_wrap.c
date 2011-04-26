@@ -9,8 +9,8 @@
 #define DEBUG 0
 #define HID(argname) (((h5_holder*) R_ExternalPtrAddr(argname))->id)
 #define NM(argname) (CHAR(STRING_ELT(argname, 0)))
-#define SUCCESS (ScalarInteger(0))
-#define FAILURE (ScalarInteger(1))
+#define SUCCESS ScalarLogical(1)
+#define FAILURE ScalarLogical(0)
 
 typedef struct h5_holder {
     int is_file;
@@ -379,8 +379,10 @@ SEXP h5R_write_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts, SEXP data) {
     
     if (__ERROR__ == 1) {
 	error("Unsupported class in %s\n", __func__);
+	return FAILURE;
     }
-    return R_NilValue;
+
+    return SUCCESS;
 }
 
 
@@ -607,8 +609,11 @@ SEXP h5R_write_attribute(SEXP h5_attr, SEXP data) {
     void* buf = NULL; 
     char** tmp = NULL;
     int i;
+    int atype = INTEGER(h5R_get_type(h5_attr))[0];
 
-    switch (INTEGER(h5R_get_type(h5_attr))[0]) {
+    Rprintf("atype is: %d\n", atype);
+
+    switch (atype) {
     case H5T_INTEGER:
 	buf = INTEGER(data);
 	memtype = H5T_NATIVE_INT;
@@ -667,11 +672,21 @@ SEXP h5R_read_attr(SEXP h5_attr) {
  * File content inspection and iteration.
  */
 SEXP h5R_attribute_exists(SEXP h5_obj, SEXP name) {
-    return(ScalarInteger(H5Aexists(HID(h5_obj), NM(name))));
+    if (H5Aexists(HID(h5_obj), NM(name)) == 1) {
+	return SUCCESS;
+    } 
+    else {
+	return FAILURE;
+    }
 }
 
 SEXP h5R_dataset_exists(SEXP h5_obj, SEXP name) {
-    return(ScalarInteger(H5Lexists(HID(h5_obj), NM(name), H5P_DEFAULT)));
+    if (H5Lexists(HID(h5_obj), NM(name), H5P_DEFAULT) == 1) {
+	return SUCCESS;
+    } 
+    else {
+	return FAILURE;
+    }
 }
 
 
@@ -764,9 +779,3 @@ herr_t _h5R_name_exists(hid_t loc_id, const char *name, const H5O_info_t *info,
     }
 }
 
-SEXP h5R_name_exists(SEXP h5_obj, SEXP _name) {
-    const char* name = NM(_name);
-    herr_t v = H5Ovisit (HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, _h5R_name_exists, 
-			 (void*) name);
-    return ScalarLogical(v); 
-}
