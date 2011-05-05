@@ -572,11 +572,11 @@ setMethod("ncol", "H5DataContainer", function(x) {
 
 ## construct a list of elements in the file.
 .listH5Contents <- function(h5Obj) .myCall("h5R_list_contents", .ePtr(h5Obj))
-.listH5Attributes <- function(h5Obj) .myCall("h5R_list_attributes", .ePtr(h5Obj))
+
+listH5Attributes <- function(h5Obj) .myCall("h5R_list_attributes", .ePtr(h5Obj))
 
 listH5Contents <- function(h5Obj) {
   contents <- .listH5Contents(h5Obj)
-  
   lst <- lapply(contents, function(a) {
     h5Obj <- switch(as.character(a[[2]]),
                     '0' = { getH5Group(h5Obj, a[[1]]) },
@@ -589,7 +589,7 @@ listH5Contents <- function(h5Obj) {
     }
     list(name = a[[1]],
          type = a[[2]],
-         attributes = .listH5Attributes(h5Obj),
+         attributes = listH5Attributes(h5Obj),
          dim = dim)
   })
   names(lst) <- sapply(lst, "[[", 1)
@@ -597,7 +597,6 @@ listH5Contents <- function(h5Obj) {
     a$name <- basename(a$name)
     a
   })
-
   return(lst)
 }
 
