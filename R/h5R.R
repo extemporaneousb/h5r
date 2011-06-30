@@ -572,7 +572,6 @@ setMethod("ncol", "H5DataContainer", function(x) {
 
 ## construct a list of elements in the file.
 .listH5Contents <- function(h5Obj) .myCall("h5R_list_contents", .ePtr(h5Obj))
-
 listH5Attributes <- function(h5Obj) .myCall("h5R_list_attributes", .ePtr(h5Obj))
 
 listH5Contents <- function(h5Obj) {
@@ -599,6 +598,10 @@ listH5Contents <- function(h5Obj) {
   })
   return(lst)
 }
+
+setMethod("ls", "H5Obj", function(name) {
+  names(listH5Contents(name))
+})
 
 h5ObjectExists <- function(h5Obj, name) {
   .myCall("h5R_dataset_exists", .ePtr(h5Obj), name)
@@ -750,6 +753,18 @@ setMethod("as.data.frame", "H5DataFrame", function(x) {
   return(d)
 })
 
+writeH5DataFrame <- function(df, fileName, overwrite = T) {
+  if (file.exists(fileName) && overwrite) {
+    file.remove(fileName)
+  } else if (file.exists(fileName) && !overwrite) {
+    stop("File exists!")
+  }
+  h <- H5File(fileName, 'w')
+  mapply(df, colnames(df), FUN = function(a, nm) {
+    createH5Dataset(h, nm, a)
+  })
+  H5DataFrame(fileName)
+}
 
 ##
 ## hSlab stuff.
