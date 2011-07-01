@@ -136,20 +136,19 @@ setMethod("initialize", c("H5File"), function(.Object, fileName, mode = c('r', '
     return(.Object)
 
   mode <- match.arg(mode)
-  
   if (! file.exists(fileName) && mode == 'w') {
-    .myCall("h5R_create", fileName, package = "h5R")
+    .myCall("h5R_create", fileName)
   }
-  
   if (! file.exists(fileName)) {
     stop(paste("Unable to open file:", fileName, "does not exist."))
   }
-  x <- .myCall("h5R_open", fileName, if(mode == 'r') as.integer(0) else as.integer(1), package = "h5R")
 
+  ## convert the fileName - essentially for ~. 
+  fileName <- tools:::file_path_as_absolute(normalizePath(fileName))
+  x <- .myCall("h5R_open", fileName, if (mode == 'r') as.integer(0) else as.integer(1))
   if (is.null(x)) {
     stop(paste("Problem opening file:", fileName))
   }
-  
   .Object@ePtr <- x
   .Object@fileName <- fileName
   
