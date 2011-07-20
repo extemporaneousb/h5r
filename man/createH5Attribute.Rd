@@ -4,20 +4,20 @@
   This is a Metadata Oject that Describes the Primary Data Object
 }
 \description{
- The attribute describes characteristics of the primary data object,
- such as a dataset, and specifies the attribute property list. The
- primary data object characteristics include the datatype and
- dataspace of the attribute data.
+  The attribute describes characteristics of the primary data object,
+  such as a dataset, and specifies the attribute property list. The
+  primary data object characteristics include the datatype and
+  dataspace of the attribute data.
 }
 \usage{
-createH5Attribute(h5Obj, attrName, attrValue, ...)
+  createH5Attribute(h5Obj, attrName, attrValue, ...)
 }
 \arguments{
   \item{h5Obj}{
     Oject to which the attribute is attached.
 }
   \item{attrName}{
-    Name of attribute
+    Name of attribute.
 }
   \item{attrValue}{
     The value portion of the attribute which contains data element(s)
@@ -29,7 +29,7 @@ createH5Attribute(h5Obj, attrName, attrValue, ...)
 }
 \details{
   The attribute is attached to an object and has a unique name. The
-  value part of the attribute conatins one or more data elements
+  value part of the attribute conatins one or more data elements.
 }
 \value{
   This function returns the class of attribute, name, dimensions and
@@ -44,5 +44,5 @@ createH5Attribute(h5Obj, attrName, attrValue, ...)
   createH5Attribute(h5, "attri", c("a","b","c","d"))
   createH5Attribute(h5, "bute", as.integer(c(rnorm(1),rpois(1,5))))
 }
-\keyword{dataset}
+\keyword{attribute}
 
