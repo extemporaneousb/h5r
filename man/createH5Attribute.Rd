@@ -1,10 +1,10 @@
 \name{createH5Attribute}
 \alias{createH5Attribute}
 \title{
-  This is a Metadata Oject that Describes the Primary Data Object
+  A Function that Creates a Metadata Oject that Describes the Primary Data Object
 }
 \description{
-  The attribute describes characteristics of the primary data object,
+  'createH5Attribute' describes characteristics of the primary data object,
   such as a dataset, and specifies the attribute property list. The
   primary data object characteristics include the datatype and
   dataspace of the attribute data.
@@ -32,11 +32,7 @@
   value part of the attribute conatins one or more data elements.
 }
 \value{
-  This function returns the class of attribute, name, dimensions and
-  data type.
-}
-\seealso{
-  readH5Attribute
+  An object of type H5Attribute.  
 }
 \examples{
   require(h5r)

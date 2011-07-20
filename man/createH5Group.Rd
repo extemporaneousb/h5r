@@ -1,45 +1,42 @@
 \name{createH5Group}
 \alias{createH5Group}
 \title{
-   Fill in
+   Create a Group that Contains HDF5 Objects
 }
 \description{
-  Fill in
+  'createH5Group' contains zero or more HDF5 objects which can consist of
+   either groups, or datasets, and supporting metadata. 
 }
 \usage{
-createH5Group(h5Obj, groupName, ...)
+  createH5Group(h5Obj, groupName, ...)
 }
 \arguments{
   \item{h5Obj}{
-  Fill in
+      H5 object in which the group(s) or dataset(s) are located.
 }
   \item{groupName}{
-  Describe this
+      Name of group.
 }
   \item{\dots}{
-  Describe this
+      Extra arguments. See class documentation for specific methods.
 }
 }
 \details{
- more here
+  HDF5 groups are comparable to directories in Linux/Unix.
 }
 \value{
-  Describe the value returned
-  If it is a LIST, use
-  \item{comp1 }{Description of 'comp1'}
-  \item{comp2 }{Description of 'comp2'}
+    An object of type H5Group.   
 }
 \references{
-  Blah 
-}
-\note{
-  Further notes
+  \url{http://www.hdfgroup.org/HDF5/doc/H5.intro.html.#IntroOGroups}
 }
 \seealso{
-  Helpful link
+  \link[=HDF5 file structures]{createH5Datasets}
 }
 \examples{
-  Example here
+  library("h5r")
+  h5 <- H5File("test.H5",'w')
+  createH5Group(h5, "grp101")
 }
-\keyword{key}
+\keyword{datasets}
 

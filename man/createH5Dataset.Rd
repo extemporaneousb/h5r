@@ -2,9 +2,11 @@
 \alias{createH5Dataset}
 \alias{writeH5Data}
 
-\title{Create a dataset in the specified H5 object.}
+\title{Create a Dataset in the Specified H5 Object}
 \description{
-  Create a dataset by name in the specified H5 object.
+  'createH5Dataset' contains a header and a data
+  array. The header describes the name of the group, datatype,
+  dataspace, and storage layout.
 }
 \usage{
   createH5Dataset(h5Obj, datasetName, data, dims, dType =
@@ -62,5 +64,5 @@
       writeH5Data(m, as.integer(rpois(1000,lambda = 10)), c((i-1)*1000+1,1),c( 1000,1))
   }
 }
-\keyword{programming}
+\keyword{datasets}
 
