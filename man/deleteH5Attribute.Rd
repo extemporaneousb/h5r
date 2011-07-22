@@ -1,6 +1,5 @@
 \name{deleteH5Attribute}
 \alias{deleteH5Attribute}
-\alias{createH5Attribute}
 \title{
   A Function that Deletes a Metadata Object which Describes the Primary
   Data Object

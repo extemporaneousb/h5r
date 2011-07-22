@@ -1,7 +1,7 @@
 \name{deleteH5Obj}
 \alias{deleteH5Obj}
 \title{
-  Delete H5Object
+  Delete Object
 }
 \description{
   'deleteH5Obj' is a function that removes the H5 Object. The H5 object,

@@ -1,61 +1,42 @@
 \name{h5AttributeExists}
 \alias{h5AttributeExists}
-%- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-%%  ~~function to do ... ~~
+  Check whether an Attribute Exists 
 }
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+  'h5AttributeExists' is a function that searches for an attribute of the
+  specified name. The function returns a TRUE or FALSE
+  statement. 
 }
 \usage{
 h5AttributeExists(h5Obj, name)
 }
-%- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{h5Obj}{
-%%     ~~Describe \code{h5Obj} here~~
+    H5 object in which the attribute is located.
 }
   \item{name}{
-%%     ~~Describe \code{name} here~~
+    Name of attribute.
 }
-}
-\details{
-%%  ~~ If necessary, more details than the description above ~~
 }
 \value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-%%  \item{comp1 }{Description of 'comp1'}
-%%  \item{comp2 }{Description of 'comp2'}
-%% ...
+  The object returned is of type character.
 }
-\references{
-%% ~put references to the literature/web site here ~
-}
-\author{
-%%  ~~who you are~~
-}
-\note{
-%%  ~~further notes~~
-}
-
-%% ~Make other sections like Warning with \section{Warning }{....} ~
-
 \seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
+  \link{createH5Attribute}
 }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
-
-## The function is currently defined as
-function (h5Obj, name) 
-{
-    .myCall("h5R_attribute_exists", .ePtr(h5Obj), name)
+  require(h5r)
+  h5 <- H5File("test.h5", 'w')
+  H5A <-createH5Attribute(h5,"a1",10:1, overwrite = TRUE)
+  if (h5AttributeExists(h5, "a1")) {
+    print("Exists!")
   }
+  f = function(attrName) h5AttributeExists(h5, attrName)
+  d = listH5Attributes(h5)
+  f(d[[1]])
+  sapply(d, f)
+
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\keyword{attribute}
+
