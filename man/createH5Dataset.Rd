@@ -36,10 +36,10 @@
     
   }
   \item{offsets} {
-    Determines x,y-point at which vector or matrix begins.
+    Determines x,y-point at which vector begins.
   }
   \item{extents} {
-    Determines the length of the vector or matrix.
+    Determines the length of the vector.
     }
 }
 \value{

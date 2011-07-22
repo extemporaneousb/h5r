@@ -1,5 +1,6 @@
 \name{H5DataFrame}
 \alias{H5DataFrame}
+\alias{writeH5DataFrame}
 \title{
   Create an H5 Data Frame
 }
@@ -12,48 +13,26 @@ H5DataFrame(file, nms = NA)
 }
 \arguments{
   \item{file}{
-    
+    H5 file.
 }
   \item{nms}{
-%%     ~~Describe \code{nms} here~~
+    File names.
 }
 }
 \details{
-%%  ~~ If necessary, more details than the description above ~~
 }
 \value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-%%  \item{comp1 }{Description of 'comp1'}
-%%  \item{comp2 }{Description of 'comp2'}
-%% ...
 }
 \references{
-%% ~put references to the literature/web site here ~
-}
-\author{
-%%  ~~who you are~~
 }
 \note{
-%%  ~~further notes~~
 }
-
-%% ~Make other sections like Warning with \section{Warning }{....} ~
-
 \seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
    require(h5r)
    h5 <- H5File("test.h5", 'w')
-   d1 <- createH5Dataset(h5,"one", c(1,7,5))
-   d2 <- createH5Dataset(h5,"two", c(6,4,8))
-   ...
-
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
-
+...
 ## The function is currently defined as
 function (file, nms = NA) 
 {
@@ -76,7 +55,5 @@ function (file, nms = NA)
     return(obj)
   }
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory.
-\keyword{ ~kwd1 }
-\keyword{ ~kwd2 }% __ONLY ONE__ keyword per line
+\keyword{datagen}
+

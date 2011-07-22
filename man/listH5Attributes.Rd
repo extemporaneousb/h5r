@@ -23,8 +23,7 @@
 \examples{
   require(h5r)
   h5 <- H5File("test.h5", 'w')
-  createH5Attribute(h5, "attri", c("a","b","c","d"))
-  createH5Attribute(h5, "bute", as.integer(c(rnorm(1),rpois(1,5))))
+  listH5Attributes(h5)
 }
 \keyword{attribute}
 

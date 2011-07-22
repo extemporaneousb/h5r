@@ -19,7 +19,7 @@
 }
 }
 \value{
-  The object returned is of type character.
+  The object returned is of type logical.
 }
 \seealso{
   \link{createH5Dataset}
