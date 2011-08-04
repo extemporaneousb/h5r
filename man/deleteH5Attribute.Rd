@@ -1,5 +1,6 @@
 \name{deleteH5Attribute}
 \alias{deleteH5Attribute}
+\alias{deleteH5Attribute-methods}
 \title{
   A Function that Deletes a Metadata Object which Describes the Primary
   Data Object

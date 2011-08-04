@@ -2,6 +2,7 @@
 \alias{createH5Dataset}
 \alias{writeH5Data}
 \alias{H5Container-class}
+\alias{createH5Dataset-methods}
 
 \title{Create a Dataset in the Specified H5 Object}
 \description{
