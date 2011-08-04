@@ -1,6 +1,7 @@
 \name{createH5Dataset}
 \alias{createH5Dataset}
 \alias{writeH5Data}
+\alias{H5Container-class}
 
 \title{Create a Dataset in the Specified H5 Object}
 \description{
@@ -47,8 +48,8 @@
   data type.
 }
 \examples{
-  library("h5r")
-  h5 <- H5File("test.H5",'w')
+  require(h5r)
+  h5 <- H5File("test.h5",'w')
   m <- createH5Dataset(h5, "mm", cbind(rnorm(1000), rnorm(1000)))
   m[1:10, 2]
 

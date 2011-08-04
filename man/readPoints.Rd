@@ -18,6 +18,7 @@ readPoints(h5Dataset, idxs)
   \item{idxs}{
   Specify coordinate indexes to be printed.
 }
+}
 \value{
   The values returned depend on H5 dataset data. Values returned can be
   of type integer, double or character.
