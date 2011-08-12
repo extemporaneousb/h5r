@@ -7,6 +7,9 @@
   'readPoints' is a function that prints user-specified points from an
   H5 dataset. These points may be selected either by directly specifying
   coordinate indexes, or by a sampling function.
+
+  lksdflksjf
+
 }
 \usage{
 readPoints(h5Dataset, idxs)
