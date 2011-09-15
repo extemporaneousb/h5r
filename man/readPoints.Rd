@@ -32,8 +32,8 @@ readPoints(h5Dataset, idxs)
 \examples{
   require(h5r)
   h5 <- H5File("test.h5", 'w')
-  d1 <- createH5Dataset(h5, "jon", runif(100000))
-  p <- readPoints(d1, ss <- sample(1:length(d1), size = 1000, replace = T))
+  d1 <- createH5Dataset(h5, "dataset", runif(100000))
+  p <- readPoints(d1, ss <- sample(1:length(d1), size = 1000, replace = TRUE))
   head(p)
   all(p == d1[ss])
 }

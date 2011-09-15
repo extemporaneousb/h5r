@@ -7,7 +7,7 @@ source("tinyTestHarness.R")
 ##
 TH <- TestHarness()
 
-fileName <- "test.h5"
+fileName <- "testwrite.h5"
 
 TH("file create", { h5 <- H5File(fileName, 'w'); TRUE })
 TH("file remove", { fn <- h5@fileName; rm(h5) ; gc() ; file.remove(fn); TRUE })

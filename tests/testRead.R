@@ -7,7 +7,6 @@ source("tinyTestHarness.R")
 ##
 TH <- TestHarness()
 
-
 ##
 ## The tests.
 ##

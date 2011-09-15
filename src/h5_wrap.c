@@ -1,6 +1,5 @@
 /**
  * R/C Interface code for HDF5 file format. 
- *
  */
 #include <hdf5.h>
 #include <Rinternals.h>    
@@ -19,7 +18,9 @@ typedef struct h5_holder {
 
 void h5R_finalizer(SEXP h5_obj) {
     h5_holder* h = (h5_holder*) R_ExternalPtrAddr(h5_obj);
-    if (! h) return;
+    if (! h) {
+	return;
+    }
     if (h->is_file == 1) {
 	H5Fflush(HID(h5_obj), H5F_SCOPE_GLOBAL);
 	H5Fclose(HID(h5_obj));
@@ -35,10 +36,15 @@ void h5R_finalizer(SEXP h5_obj) {
 	    H5Gclose(HID(h5_obj));
 	    break;
 	default:
-	    error("Tried finalize type: %d.\n",  H5Iget_type(HID(h5_obj)));
+	    // error("Tried finalize type: %d.\n",  H5Iget_type(HID(h5_obj)));
+	    // Now that I'm writing, when I garbage collect I could
+	    // pick up an already closed thing, which seems to give this branch
+	    // problems.
+	    break;
 	}
     }
-    Free(h);
+    free(h);
+    R_ClearExternalPtr(h5_obj);
 }
 
 SEXP h5R_flush(SEXP h5_file) {
@@ -50,11 +56,14 @@ SEXP _h5R_make_holder (hid_t id, int is_file) {
     if (id < 0) {
 	return R_NilValue;
     } 
-    h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
+    /** Note the use of malloc/free here and above. **/
+    h5_holder* holder = (h5_holder*) malloc(sizeof(h5_holder));
     holder->id = id;
     holder->is_file = is_file;
-    SEXP e_ptr = R_MakeExternalPtr(holder, install("hd5_handle"), R_NilValue); 
+    SEXP e_ptr = R_MakeExternalPtr(holder, R_NilValue, R_NilValue); 
+    PROTECT(e_ptr);
     R_RegisterCFinalizerEx(e_ptr, h5R_finalizer, TRUE);
+    UNPROTECT(1); 
     return e_ptr;
 }
 
@@ -123,6 +132,7 @@ hid_t _h5R_get_space(SEXP h5_obj) {
 int _h5R_get_ndims(SEXP h5_obj) {
     hid_t space = _h5R_get_space(h5_obj);
     int ndims = H5Sget_simple_extent_ndims(space);
+    H5Sclose(space);
     return ((ndims < 0) ? 1 : ndims);
 }
 
@@ -133,7 +143,6 @@ int _h5R_get_nelts(SEXP h5_obj) {
     
     hsize_t* dims = (hsize_t* ) Calloc(ndims, hsize_t);
     H5Sget_simple_extent_dims(space, dims, NULL);
-    
     for (i = 0; i < ndims; i++)
 	v *= dims[i];
     
@@ -239,7 +248,9 @@ SEXP _h5R_read_vlen_str(SEXP h5_obj) {
     
     /** Cleanup. **/
     if (_h5R_is_vlen(h5_obj)) {
-	H5Dvlen_reclaim (memtype, _h5R_get_space(h5_obj), H5P_DEFAULT, rdata);
+	hid_t space = _h5R_get_space(h5_obj);
+	H5Dvlen_reclaim (memtype, space, H5P_DEFAULT, rdata);
+	H5Sclose(space);
     } 
     else {
 	for (i = 0; i < nelts; i++)
