@@ -5,18 +5,34 @@
 ##
 require(h5r)
 
+showPS <- function() system(paste('ps -eo pid,vsz,%mem | grep', Sys.getpid()))
+gcl <- function() { lapply(1:10, gc, verbose = F)[[10]] }
+
+showPS()
 m <- .Call("h5R_allocate_gig")
 rm(m)
-gc()
+gcl()
+showPS()
 
 m <- sapply(1:1000, function(a) {
   .Call("h5R_allocate_meg")
 })
 rm(m)
-gc()
+gcl()
+showPS()
 
 m <- sapply(1:100000, function(a) {
   .Call("h5R_allocate_k")
 })
 rm(m)
-gc()
+gcl()
+showPS()
+
+m <- sapply(1:1000000, function(a) {
+  .Call("h5R_allocate_k")
+})
+rm(m)
+gcl()
+showPS()
+
+
