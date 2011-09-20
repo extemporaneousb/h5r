@@ -625,13 +625,13 @@ h5AttributeExists <- function(h5Obj, name) {
 ## H5DataFrame interface
 ##
 ################################################################
-H5DataFrame <- function(file, nms = NA) {
+H5DataFrame <- function(fileName, nms = NA) {
   .getCols <- function(h5) {
     nms <- names(listH5Contents(h5))
     nms[nms != "."] 
   }
 
-  h5File <- H5File(file)
+  h5File <- H5File(fileName)
   if (is.na(nms)) {
     nms <- .getCols(h5File)
   }

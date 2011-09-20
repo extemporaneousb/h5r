@@ -1,5 +1,25 @@
         **************************************************
         *                                                *
+        *              1.2 SERIES NEWS                   *
+        *                                                *
+        **************************************************
+
+
+                CHANGES IN h5r VERSION 1.1
+
+NEW FEATURES
+    o Added 'ls' function
+    o Added 'H5DataFrame' class - this is still a prototype
+
+BUG FIXES
+    o Cleaned up some memory that I was leaving behind. Unfortunately,
+    there are still some small allocations that I probably need to
+    deal with.
+
+
+
+        **************************************************
+        *                                                *
         *              1.1 SERIES NEWS                   *
         *                                                *
         **************************************************

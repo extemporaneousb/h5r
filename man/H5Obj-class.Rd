@@ -7,11 +7,11 @@
 \alias{H5Dataset-class}
 \alias{H5DataContainer-class}
 \alias{H5Attribute-class}
-\alias{getH5Group,H5Obj,character-method}
+\alias{getH5Group,H5Container,character-method}
 \alias{getH5Group}
 \alias{getH5Attribute,H5Obj,character-method}
 \alias{getH5Attribute}
-\alias{getH5Dataset,H5Obj,character-method}
+\alias{getH5Dataset,H5Container,character-method}
 \alias{getH5Dataset}
 \alias{getH5Dim,H5DataContainer-method}
 \alias{getH5Dim}
@@ -27,21 +27,15 @@
 \alias{listH5Contents}
 \alias{print.H5ContentList}
 \alias{h5Exists}
-\alias{hSlab}
 \alias{start}
 \alias{width}
 \alias{[,H5DataContainer,ANY,ANY,ANY-method}
 \alias{[,H5Dataset,ANY,ANY,ANY-method}
-\alias{[,H5Dataset,hSlab,missing,missing-method}
-\alias{length,hSlab-method}
 \alias{show,H5DataContainer-method}
 \alias{show,H5File-method}
 \alias{show,H5Group-method}
 \alias{show,H5Obj-method}
-\alias{start,hSlab-method}
-\alias{width,hSlab-method}
-
-
+\alias{ls,H5Obj-method}
 
 \title{Class "H5Obj"}
 \description{Classes for objects originating from HDF5 files.}
