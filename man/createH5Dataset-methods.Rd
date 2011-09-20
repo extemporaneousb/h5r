@@ -1,27 +1,22 @@
-\name{createH5Dataset}
-\alias{createH5Dataset}
-\alias{writeH5Data}
-\alias{H5Container-class}
+\name{createH5Dataset-methods}
 \alias{createH5Dataset-methods}
-
-\title{Create a Dataset in the Specified H5 Object}
+\alias{createH5Dataset}
+\alias{createH5Dataset,H5Container,character-method}
+\title{Create Datasets in HDF5 Files}
 \description{
-  'createH5Dataset' contains a header and a data
-  array. The header describes the name of the group, datatype,
-  dataspace, and storage layout.
+  This method creates a new dataset in an HDF5 file.
 }
 \usage{
-  createH5Dataset(h5Obj, datasetName, data, dims, dType =
-  c("integer", "double", "character"), chunkSizes = NA, overwrite = TRUE)
+  \S4method{createH5Dataset}{H5Container,character}(h5Obj, datasetName, data, dims, dType, chunkSizes, overwrite)
 }
 \arguments{
   \item{h5Obj}{
-    H5 object in which the dataset is located.
+    H5 object in which the dataset is located, e.g., H5File or H5Group.
   }
   \item{datasetName}{
     Specify name of dataset.
   }
-  \item{data} {
+  \item{data}{
     The actual data to store, e.g., a matrix or vector of the same data type.
   }
   \item{dims}{
@@ -30,24 +25,20 @@
   \item{dType}{
     Specify data type; integer, double or character.
   }
-  \item{chunkSizes} {
+  \item{chunkSizes}{
     Specify chunk sizes of dataset.
   }
-  \item{overwrite} {
+  \item{overwrite}{
     Overwrite dataset.
-    
   }
-  \item{offsets} {
-    Determines x,y-point at which vector begins.
-  }
-  \item{extents} {
-    Determines the length of the vector.
+}
+\section{Methods}{
+  \describe{
+    \item{\code{signature(h5Obj = "H5Container", datasetName = "character")}}{
+      Given an H5Container object, e.g., H5Group and a name create a
+      dataset under that container in the file.
     }
-}
-\value{
-  Values returned are integer, double or character, depending on
-  data type.
-}
+}}
 \examples{
   require(h5r)
   h5 <- H5File("test.h5",'w')
@@ -66,5 +57,4 @@
       writeH5Data(m, as.integer(rpois(1000,lambda = 10)), c((i-1)*1000+1,1),c( 1000,1))
   }
 }
-\keyword{datasets}
-
+\keyword{methods}

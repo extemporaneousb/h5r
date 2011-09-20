@@ -12,13 +12,10 @@
 \arguments{
   \item{h5Obj}{
     H5 object to which the attributes are attached.
-}
+  }
 }
 \value{
   \item{attrName}{Name of attribute}
-}
-\seealso{
-  \link{createH5Attributes}
 }
 \examples{
   require(h5r)

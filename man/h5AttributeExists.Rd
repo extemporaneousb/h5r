@@ -9,21 +9,18 @@
   statement. 
 }
 \usage{
-h5AttributeExists(h5Obj, name)
+  h5AttributeExists(h5Obj, name)
 }
 \arguments{
   \item{h5Obj}{
     H5 object in which the attribute is located.
-}
+  }
   \item{name}{
     Name of attribute.
-}
+  }
 }
 \value{
   The object returned is of type logical.
-}
-\seealso{
-  \link{createH5Attribute}
 }
 \examples{
   require(h5r)
@@ -36,7 +33,6 @@ h5AttributeExists(h5Obj, name)
   d = listH5Attributes(h5)
   f(d[[1]])
   sapply(d, f)
-
 }
 \keyword{attribute}
 

@@ -21,13 +21,10 @@
 \value{
   The object returned is of type logical.
 }
-\seealso{
-  \link{createH5Dataset}
-}
 \examples{
   require(h5r)
   h5 <- H5File("test.h5", 'w')
-   a = c(rnorm(100), rnorm(102)) 
+  a <- c(rnorm(100), rnorm(102)) 
   d1 <- createH5Dataset(h5, "new", a)
   d.e <- h5DatasetExists(h5, "new")
   d.e

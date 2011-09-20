@@ -4,15 +4,18 @@
   Create an H5File.
 }
 \description{
-Constructs a read-only H5File.
+  Constructs a read-only H5File.
 }
 \usage{
-H5File(fileName)
+  H5File(fileName, mode = "r")
 }
 \arguments{
   \item{fileName}{
     A path to an H5File. Typically, the path cannot contain special
     characters, such as "~". 
+  }
+  \item{mode}{
+    Whether to open the file up with write capabilities.
   }
 }
 \value{

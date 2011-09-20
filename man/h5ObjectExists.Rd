@@ -21,17 +21,12 @@
 \value{
   The object returned is of type logical.
 }
-\seealso{
-  \link{createH5Dataset}
-  \link{createH5Group}
-}
 \examples{
   require(h5r)
   h5 <- H5File("test.h5", 'w')
   d1 <- createH5Dataset(h5,"new", c(rnorm(100),rnorm(90)))
   o.d <- h5ObjectExists(h5,"new")
   o.d
-
   g1 <- createH5Group(h5, "grp101")
   o.g <- h5ObjectExists(h5, "grp101")  
   o.g

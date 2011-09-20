@@ -16,6 +16,8 @@ typedef struct h5_holder {
     hid_t id;
 } h5_holder;
 
+
+
 void h5R_finalizer(SEXP h5_obj) {
     h5_holder* h = (h5_holder*) R_ExternalPtrAddr(h5_obj);
     if (! h) {
@@ -43,21 +45,15 @@ void h5R_finalizer(SEXP h5_obj) {
 	    break;
 	}
     }
-    free(h);
+    Free(h);
     R_ClearExternalPtr(h5_obj);
-}
-
-SEXP h5R_flush(SEXP h5_file) {
-    H5Fflush(HID(h5_file), H5F_SCOPE_GLOBAL);
-    return SUCCESS;
 }
 
 SEXP _h5R_make_holder (hid_t id, int is_file) {
     if (id < 0) {
 	return R_NilValue;
     } 
-    /** Note the use of malloc/free here and above. **/
-    h5_holder* holder = (h5_holder*) malloc(sizeof(h5_holder));
+    h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
     holder->id = id;
     holder->is_file = is_file;
     SEXP e_ptr = R_MakeExternalPtr(holder, R_NilValue, R_NilValue); 
@@ -65,6 +61,11 @@ SEXP _h5R_make_holder (hid_t id, int is_file) {
     R_RegisterCFinalizerEx(e_ptr, h5R_finalizer, TRUE);
     UNPROTECT(1); 
     return e_ptr;
+}
+
+SEXP h5R_flush(SEXP h5_file) {
+    H5Fflush(HID(h5_file), H5F_SCOPE_GLOBAL);
+    return SUCCESS;
 }
 
 SEXP h5R_open(SEXP filename, SEXP mode) {

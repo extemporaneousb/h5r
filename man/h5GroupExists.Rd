@@ -22,9 +22,6 @@
 \value{
   The object returned is of type logical.
 }
-\seealso{
-  \link{createH5Group}
-}
 \examples{
   library("h5r")
   h5 <- H5File("test.H5",'w')
