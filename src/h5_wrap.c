@@ -78,15 +78,15 @@ SEXP h5R_create(SEXP filename) {
 }
 
 SEXP h5R_get_group(SEXP h5_obj, SEXP group_name) {
-    return _h5R_make_holder(H5Gopen(HID(h5_obj), NM(group_name), H5P_DEFAULT), 0);
+    return _h5R_make_holder(H5Gopen2(HID(h5_obj), NM(group_name), H5P_DEFAULT), 0);
 }
 
 SEXP h5R_create_group(SEXP h5_obj, SEXP group_name) {
-    return _h5R_make_holder(H5Gcreate(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT), 0);
+    return _h5R_make_holder(H5Gcreate2(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT), 0);
 }
 
 SEXP h5R_get_dataset(SEXP h5_obj, SEXP dataset_name) {
-    return _h5R_make_holder(H5Dopen(HID(h5_obj), NM(dataset_name), H5P_DEFAULT), 0);
+    return _h5R_make_holder(H5Dopen2(HID(h5_obj), NM(dataset_name), H5P_DEFAULT), 0);
 }
 
 SEXP h5R_get_attr(SEXP h5_obj, SEXP attr_name) {
@@ -330,8 +330,8 @@ SEXP h5R_create_dataset(SEXP h5_obj, SEXP name, SEXP h5_type, SEXP dims, SEXP ch
     H5Pset_chunk(cparms, length(chunks), chunk_lens);
     
     hid_t dataspace = H5Screate_simple(length(dims), current_dims, max_dims);
-    hid_t dataset   = H5Dcreate(HID(h5_obj), NM(name), memtype, 
-				dataspace, H5P_DEFAULT, cparms, H5P_DEFAULT);
+    hid_t dataset   = H5Dcreate2(HID(h5_obj), NM(name), memtype, 
+				 dataspace, H5P_DEFAULT, cparms, H5P_DEFAULT);
     
     H5Pclose(cparms);
     H5Sclose(dataspace);
@@ -615,7 +615,7 @@ SEXP h5R_create_attribute(SEXP h5_obj, SEXP name, SEXP h5_type, SEXP dims) {
     }
     
     hid_t dataspace = H5Screate_simple(length(dims), current_dims, max_dims);
-    hid_t attribute = H5Acreate(HID(h5_obj), NM(name), memtype, 
+    hid_t attribute = H5Acreate2(HID(h5_obj), NM(name), memtype, 
 				dataspace, H5P_DEFAULT, H5P_DEFAULT);
     
     H5Sclose(dataspace);
@@ -774,7 +774,7 @@ SEXP h5R_list_attributes(SEXP h5_obj) {
     hsize_t n   = 0;
     SEXP dta;
 
-    H5Aiterate(HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, &n, (H5A_operator2_t) _h5R_count_func, (void*) &counter);
+    H5Aiterate2(HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, &n, (H5A_operator2_t) _h5R_count_func, (void*) &counter);
     
     __index_and_SEXP__* isxp = (__index_and_SEXP__*) Calloc(1, __index_and_SEXP__);
     PROTECT(dta = allocVector(STRSXP, counter));
@@ -782,7 +782,7 @@ SEXP h5R_list_attributes(SEXP h5_obj) {
     isxp->i = 0;
     
     n = 0;
-    H5Aiterate(HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, &n, (H5A_operator2_t) _h5R_capture_name, (void*) isxp);
+    H5Aiterate2(HID(h5_obj), H5_INDEX_NAME, H5_ITER_NATIVE, &n, (H5A_operator2_t) _h5R_capture_name, (void*) isxp);
 
     Free(isxp);
     UNPROTECT(1);
