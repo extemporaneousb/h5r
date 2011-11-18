@@ -142,9 +142,8 @@ setMethod("initialize", c("H5File"), function(.Object, fileName, mode = c('r', '
   if (! file.exists(fileName)) {
     stop(paste("Unable to open file:", fileName, "does not exist."))
   }
-
   ## convert the fileName - essentially for ~. 
-  fileName <- tools:::file_path_as_absolute(normalizePath(fileName))
+  fileName <- normalizePath(fileName)
   x <- .myCall("h5R_open", fileName, if (mode == 'r') as.integer(0) else as.integer(1))
   if (is.null(x)) {
     stop(paste("Problem opening file:", fileName))
@@ -536,7 +535,8 @@ setMethod("show", "H5Obj", function(object) {
 
 setMethod("show", "H5File", function(object) {
   callNextMethod(object)
-  cat("file:", object@fileName, "\n")
+  fname <- object@fileName
+  cat("file:", basename(fname), "\n")
 })
 
 setMethod("show", "H5Group", function(object) {
