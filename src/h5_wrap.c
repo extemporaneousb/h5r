@@ -16,8 +16,6 @@ typedef struct h5_holder {
     hid_t id;
 } h5_holder;
 
-
-
 void h5R_finalizer(SEXP h5_obj) {
     h5_holder* h = (h5_holder*) R_ExternalPtrAddr(h5_obj);
     if (! h) {
@@ -204,6 +202,32 @@ int _h5R_get_size (SEXP h5_obj) {
     return s;
 }
 
+SEXP _h5R_read_compound_dataset(SEXP h5_obj) {
+    int nelts = _h5R_get_nelts(h5_obj);
+    int size  = _h5R_get_size(h5_obj);
+    int nmembers = H5Tget_nmembers(H5Dget_type(HID(h5_obj)));
+
+    Rprintf("nelts:%d\n", nelts);
+    Rprintf("size:%d\n", size);
+    Rprintf("nmembers:%d\n", nmembers);
+    
+    hid_t space = H5Dget_space(HID(h5_obj));
+    hid_t memtype = H5Tcreate(H5T_COMPOUND, nmembers*sizeof(int));
+    for (int i; i < nmembers; i++) {
+	H5Tinsert(memtype, 
+		  H5Tget_member_name(H5Dget_type(HID(h5_obj)), i),
+		  H5Tget_member_offset(H5Dget_type(HID(h5_obj)), i),
+		  H5Tget_class(H5Tget_member_type(H5Dget_type(HID(h5_obj)), i)));
+    }
+    /* void* p = (int**) malloc(sizeof(int) * nmembers * nelts); */
+    /* H5Dread(HID(h5_obj), memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, p); */
+    /* for (int i; i < nelts; i++) { */
+    /* 	Rprintf("%d, %d\n", ((int*) p)[0][i], ((int*) p)[1][i]); */
+    /* } */
+    
+    return h5R_get_dims(h5_obj);
+}
+
 SEXP _h5R_read_vlen_str(SEXP h5_obj) {
     int __ERROR__ = 0;
     int i = -1;
@@ -286,6 +310,8 @@ SEXP h5R_read_dataset(SEXP h5_dataset) {
 	break;
     case H5T_STRING:
 	return _h5R_read_vlen_str(h5_dataset);
+    case H5T_COMPOUND:
+	return _h5R_read_compound_dataset(h5_dataset);
     default:
 	error("Unsupported class in %s.\n", __func__);
     }

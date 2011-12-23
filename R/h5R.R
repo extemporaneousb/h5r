@@ -5,7 +5,8 @@
 ## ##############################################################################
 
 ## These are defined in H5Tpublic.h
-.h5Types <- c("integer", "double", "time", "character", "logical")
+.h5Types <- c("integer", "double", "time", "character", "logical", "opaque",
+              "compound", "reference", "enum", "vlen", "array")
 
 ## ##############################################################################
 ##
