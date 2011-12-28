@@ -213,7 +213,7 @@ SEXP _h5R_read_compound_dataset(SEXP h5_obj) {
     
     hid_t space = H5Dget_space(HID(h5_obj));
     hid_t memtype = H5Tcreate(H5T_COMPOUND, nmembers*sizeof(int));
-    for (int i; i < nmembers; i++) {
+    for (int i = 0; i < nmembers; i++) {
 	H5Tinsert(memtype, 
 		  H5Tget_member_name(H5Dget_type(HID(h5_obj)), i),
 		  H5Tget_member_offset(H5Dget_type(HID(h5_obj)), i),
