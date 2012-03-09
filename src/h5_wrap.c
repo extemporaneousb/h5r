@@ -36,10 +36,6 @@ void h5R_finalizer(SEXP h5_obj) {
 	    H5Gclose(HID(h5_obj));
 	    break;
 	default:
-	    // error("Tried finalize type: %d.\n",  H5Iget_type(HID(h5_obj)));
-	    // Now that I'm writing, when I garbage collect I could
-	    // pick up an already closed thing, which seems to give this branch
-	    // problems.
 	    break;
 	}
     }
@@ -203,6 +199,8 @@ int _h5R_get_size (SEXP h5_obj) {
 }
 
 SEXP _h5R_read_compound_dataset(SEXP h5_obj) {
+    error("This functionality doesn't yet exist.\n");
+
     int nelts = _h5R_get_nelts(h5_obj);
     int size  = _h5R_get_size(h5_obj);
     int nmembers = H5Tget_nmembers(H5Dget_type(HID(h5_obj)));
@@ -479,40 +477,35 @@ SEXP h5R_read_slab(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 	__ERROR__ = 1;
     }
     
-
     if (__ERROR__ == 0) {
 	H5Dread(HID(h5_dataset), memtype, memspace, space, H5P_DEFAULT, buf);
-
 	/** There requires a little more with strings. **/
 	if (H5T_STRING == INTEGER(h5R_get_type(h5_dataset))[0]) {
 	    PROTECT(dta = allocVector(STRSXP, v));
-	    for (i = 0; i < v; i++)
+	    for (i = 0; i < v; i++) {
 		if (((char **) buf)[i]) {
 		    SET_STRING_ELT(dta, i, mkChar(  ((char **) buf)[i] )); 
 		}
-	    
+	    }
 	    H5Dvlen_reclaim (memtype, memspace, H5P_DEFAULT, buf);
-	    
 	    H5Tclose(memtype);
 	    Free(buf);
 	}
     }
-
     /** clean up. **/
     Free(_h_offsets);
     Free(_h_counts);
     H5Sclose(memspace);
     H5Sclose(space);
-
     UNPROTECT(1);
     
     if (__ERROR__ == 1) {
 	error("Unsupported class in %s\n", __func__);
     }
-
     return dta;
 }
 
+/** This is an optimization to a very common use case of 1-d slabs. **/
 SEXP h5R_read_1d_slabs(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     int rlen = length(_counts);
     SEXP r_lst, _SEXP_offsets, _SEXP_counts;
@@ -531,7 +524,6 @@ SEXP h5R_read_1d_slabs(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
 					       _SEXP_counts));
     }
     UNPROTECT(3);
-
     return(r_lst);
 }
 
@@ -736,7 +728,6 @@ SEXP h5R_dataset_exists(SEXP h5_obj, SEXP name) {
 	return FAILURE;
     }
 }
-
 
 /** Iteration **/
 typedef struct __index_and_SEXP__ {
