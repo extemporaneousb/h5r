@@ -1,0 +1,3 @@
+#!/bin/sh
+rm -f src/h5_wrap.o src/h5_debug.o \
+      src/h5r.dll   src/h5r.so

@@ -16,7 +16,7 @@
 #define H5_CONVERT_DENORMAL_FLOAT 1
 
 /* Define if C++ compiler recognizes offsetof */
-/* #undef H5_CXX_HAVE_OFFSETOF */
+#define H5_CXX_HAVE_OFFSETOF 1
 
 /* Define a macro for Cygwin (on XP only) where the compiler has rounding
    problem converting from unsigned long long to long double */
@@ -37,10 +37,10 @@
 
 /* Define to a macro mangling the given C identifier (in lower and upper
    case), which must not contain underscores, for linking with Fortran. */
-/* #undef H5_FC_FUNC */
+#define H5_FC_FUNC(name,NAME) name ## _
 
 /* As FC_FUNC, but for C identifiers containing underscores. */
-/* #undef H5_FC_FUNC_ */
+#define H5_FC_FUNC_(name,NAME) name ## _
 
 /* Define if your system can handle overflow converting floating-point to
    integer values. */
@@ -72,6 +72,9 @@
 
 /* Define if the compiler understands the __func__ keyword */
 #define H5_HAVE_C99_FUNC 1
+
+/* Define to 1 if you have the `clock_gettime' function. */
+#define H5_HAVE_CLOCK_GETTIME 1
 
 /* Define if the function stack tracing code is to be compiled in */
 /* #undef H5_HAVE_CODESTACK */
@@ -126,7 +129,7 @@
 #define H5_HAVE_FREXPL 1
 
 /* Define to 1 if you have the `fseeko' function. */
-/* #undef H5_HAVE_FSEEKO */
+#define H5_HAVE_FSEEKO 1
 
 /* Define to 1 if you have the `fseeko64' function. */
 #define H5_HAVE_FSEEKO64 1
@@ -135,13 +138,13 @@
 /* #undef H5_HAVE_FSTAT64 */
 
 /* Define to 1 if you have the `ftello' function. */
-/* #undef H5_HAVE_FTELLO */
+#define H5_HAVE_FTELLO 1
 
 /* Define to 1 if you have the `ftello64' function. */
 #define H5_HAVE_FTELLO64 1
 
 /* Define to 1 if you have the `ftruncate64' function. */
-/* #undef H5_HAVE_FTRUNCATE64 */
+#define H5_HAVE_FTRUNCATE64 1
 
 /* Define if the compiler understands the __FUNCTION__ keyword */
 #define H5_HAVE_FUNCTION 1
@@ -172,9 +175,6 @@
 
 /* Define to 1 if you have the <gpfs.h> header file. */
 /* #undef H5_HAVE_GPFS_H */
-
-/* Define if h5dump packed bits feature is enabled */
-#define H5_HAVE_H5DUMP_PACKED_BITS 1
 
 /* Define if library will contain instrumentation to detect correct
    optimization operation */
@@ -233,6 +233,9 @@
 
 /* Define to 1 if you have the `lstat' function. */
 /* #undef H5_HAVE_LSTAT */
+
+/* Define to 1 if you have the <mach/mach_time.h> header file. */
+/* #undef H5_HAVE_MACH_MACH_TIME_H */
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define H5_HAVE_MEMORY_H 1
@@ -469,16 +472,9 @@
 /* Define if the metadata trace file code is to be compiled in */
 /* #undef H5_METADATA_TRACE_FILE */
 
-/* Define if your system can handle complicated MPI derived datatype
-   correctly. */
-/* #undef H5_MPI_COMPLEX_DERIVED_DATATYPE_WORKS */
-
 /* Define if your system's `MPI_File_set_size' function works for files over
    2GB. */
 /* #undef H5_MPI_FILE_SET_SIZE_BIG */
-
-/* Define if your system can handle special collective IO properly. */
-/* #undef H5_MPI_SPECIAL_COLLECTIVE_IO_WORKS */
 
 /* Define if we can violate pointer alignment restrictions */
 #define H5_NO_ALIGNMENT_RESTRICTIONS 1
@@ -499,7 +495,7 @@
 #define H5_PACKAGE_NAME "HDF5"
 
 /* Define to the full name and version of this package. */
-#define H5_PACKAGE_STRING "HDF5 1.8.6"
+#define H5_PACKAGE_STRING "HDF5 1.8.8"
 
 /* Define to the one symbol short name of this package. */
 #define H5_PACKAGE_TARNAME "hdf5"
@@ -508,7 +504,7 @@
 #define H5_PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define H5_PACKAGE_VERSION "1.8.6"
+#define H5_PACKAGE_VERSION "1.8.8"
 
 /* Width for printf() for type `long long' or `__int64', use `ll' */
 #define H5_PRINTF_LL_WIDTH "l"
@@ -574,7 +570,7 @@
 #define H5_SIZEOF_OFF64_T 8
 
 /* The size of `off_t', as computed by sizeof. */
-#define H5_SIZEOF_OFF_T 4
+#define H5_SIZEOF_OFF_T 8
 
 /* The size of `ptrdiff_t', as computed by sizeof. */
 #define H5_SIZEOF_PTRDIFF_T 8
@@ -638,7 +634,7 @@
 
 /* Define if your system supports pthread_attr_setscope(&attribute,
    PTHREAD_SCOPE_SYSTEM) call. */
-/* #undef H5_SYSTEM_SCOPE_THREADS */
+#define H5_SYSTEM_SCOPE_THREADS 1
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define H5_TIME_WITH_SYS_TIME 1
@@ -671,7 +667,7 @@
 /* #undef H5_USING_MEMCHECKER */
 
 /* Version number of package */
-#define H5_VERSION "1.8.6"
+#define H5_VERSION "1.8.8"
 
 /* Define if vsnprintf() returns the correct value for formatted strings that
    don't fit into size allowed */
@@ -696,7 +692,7 @@
 #endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
-/* #undef H5__FILE_OFFSET_BITS */
+#define H5__FILE_OFFSET_BITS 64
 
 /* Define for large files, on AIX-style hosts. */
 /* #undef H5__LARGE_FILES */
