@@ -167,7 +167,7 @@ SEXP h5R_get_dims(SEXP h5_obj) {
 }
 
 int _h5R_is_vlen (SEXP h5_obj) {
-    hid_t dtype;
+    hid_t dtype = -1;
 
     switch (H5Iget_type(HID(h5_obj))) {
     case H5I_DATASET:
@@ -209,7 +209,7 @@ SEXP _h5R_read_compound_dataset(SEXP h5_obj) {
     Rprintf("size:%d\n", size);
     Rprintf("nmembers:%d\n", nmembers);
     
-    hid_t space = H5Dget_space(HID(h5_obj));
+    /*hid_t space = H5Dget_space(HID(h5_obj));*/
     hid_t memtype = H5Tcreate(H5T_COMPOUND, nmembers*sizeof(int));
     for (int i = 0; i < nmembers; i++) {
 	H5Tinsert(memtype, 
