@@ -1,8 +1,0 @@
-windows/i386/lib/libhdf5.a
-windows/i386/lib/libhdf5_hl.a
-windows/i386/lib/libsz.a
-windows/i386/lib/libz.a
-windows/x64/lib/libhdf5.a
-windows/x64/lib/libhdf5_hl.a
-windows/x64/lib/libsz.a
-windows/x64/lib/libz.a

@@ -505,8 +505,7 @@ read1DSlabs <- function(h5Dataset, offsets, dims) {
 readSlab <- function(h5Dataset, offsets, dims) {
   if (! all((offsets + dims - 1) <= dim(h5Dataset)))
     stop("error invalid slice specification in readSlab.")
-  
-  d <- .myCall("h5R_read_slab", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
+  d <- .myCall("h5R_read_dataset", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
   dim(d) <- rev(dims)
 
   if (! is.null(dim(h5Dataset))) aperm(d) else d
@@ -523,7 +522,14 @@ readPoints <- function(h5Dataset, idxs) {
 }
 
 setMethod("readH5Data", "H5Dataset", function(h5Obj) {
-  .myCall('h5R_read_dataset', .ePtr(h5Obj))
+  ## nndims <- if (is.null(dim(h5Obj))) {
+  ##   length(h5Obj)
+  ## } else {
+  ##   dim(h5Obj)
+  ## }
+  ## .myCall('h5R_read_dataset', .ePtr(h5Obj), as.integer(rep(0, length(nndims))), as.integer(nndims));
+
+  .myCall('h5R_read_dataset_all', .ePtr(h5Obj))
 })
 
 setMethod("readH5Data", "H5Attribute", function(h5Obj) {

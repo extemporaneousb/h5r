@@ -48,4 +48,11 @@ j.create_dataset("ds_1", data = a, maxshape = (None, None, None))
 a = random.randint(1, 10000, prod([10]*5)).reshape(tuple([10]*5))
 g.create_dataset("ds_9", data = a, maxshape = tuple([None]*5))
 
+## create a fixed-length string dataset.
+g.create_dataset("ds_10", data = array(['rosalind', 'james', 'joseph', 'michael', 'rebecca']))
+
+letterArray = array(['a', 'bb', 'ccc', 'dddd', 'eeeee', 'ffffff'])
+g.create_dataset("ds_11", data = letterArray.reshape((2, 3)))
+
+
 f.close()
