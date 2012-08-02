@@ -54,5 +54,8 @@ g.create_dataset("ds_10", data = array(['rosalind', 'james', 'joseph', 'michael'
 letterArray = array(['a', 'bb', 'ccc', 'dddd', 'eeeee', 'ffffff'])
 g.create_dataset("ds_11", data = letterArray.reshape((2, 3)))
 
-
 f.close()
+
+## shrink the file for submission.
+os.system("h5repack -v -f GZIP=7 %s %s-repacked" % (FILE, FILE))
+os.system("mv %s-repacked %s" % (FILE, FILE))

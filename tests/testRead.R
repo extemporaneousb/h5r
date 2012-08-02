@@ -85,7 +85,7 @@ ds4 <- getH5Dataset(g, "ds_4", inMemory = F)
 
 TH("ds_2 dim", all(dim(ds4[,]) == dim(ds4)) & all(dim(ds4M[,]) == dim(ds4)))
 
-TH("ds_4, memory", (function(n = 100, s = 100) {
+TH("ds_4, memory", (function(n = 10, s = 10) {
   g1 <- gc()[,1]
   a <- replicate(n, {
     replicate(s, getH5Dataset(g, "ds_4", inMemory = FALSE)[1:2,1:2])
@@ -188,7 +188,7 @@ TH("hSlab grab",
    all(ds8[] == ds8[ hSlab(c(1,1), end = dim(ds8)) ]))
 
 TH("normal time", {
-  all(replicate(10000, {
+  all(replicate(100, {
     m <- apply(cbind(c(1,1,1), dim(ds7)), 1, function(b) {
       a <- runif(1, b[1], b[2])
       floor(c(a, runif(1, a, b[2])))
@@ -201,7 +201,7 @@ TH("normal time", {
 })
 
 TH("hSlab time", {
-  all(replicate(10000, {
+  all(replicate(100, {
     m <- apply(cbind(c(1,1,1), dim(ds7)), 1, function(b) {
       a <- runif(1, b[1], b[2])
       floor(c(a, runif(1, a, b[2])))
