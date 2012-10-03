@@ -23,5 +23,8 @@ echo 'PKG_LIBS = -lm -L$(LIB_HDF5)$(R_ARCH)/lib -lhdf5 -lsz -lz' >> $TARGET/src/
 # 4. build
 R CMD build $TARGET
 
+BUILT_TARGET=h5r_`cat $TARGET/DESCRIPTION | grep Version | sed 's/Version: //g'`.tar.gz
+
 # 5. check
-R CMD check --as-cran --timings --install-args="--no-lock --preclean" `ls h5r_*tar.gz`
+R CMD check --as-cran --timings --install-args="--no-lock --preclean" $BUILT_TARGET
+

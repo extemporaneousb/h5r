@@ -252,7 +252,8 @@ SEXP _h5R_read_string(SEXP h5_obj, int nelts, hid_t memspace, hid_t filespace) {
   UNPROTECT(1); 
 
   if (_h5R_is_vlen(h5_obj)) {
-    // It doesn't like the H5S_ALL space in the vlen_reclaim.
+    // It doesn't like the H5S_ALL space in the vlen_reclaim which can
+    // be passed in.
     if (memspace == H5S_ALL) {
       hid_t space = _h5R_get_space(h5_obj);
       H5Dvlen_reclaim (memtype, space, H5P_DEFAULT, buf);
@@ -268,8 +269,109 @@ SEXP _h5R_read_string(SEXP h5_obj, int nelts, hid_t memspace, hid_t filespace) {
   return dta;
 }
 
+/** XXX: This is probably leaky **/
 SEXP _h5R_read_compound(SEXP h5_obj, int nelts, hid_t memspace, hid_t filespace) {
-  return R_NilValue;
+  hid_t hdty   = _h5R_get_type(h5_obj);
+  int nmembers = H5Tget_nmembers(hdty);
+  int c_size   = 0;
+  SEXP res     = R_NilValue;
+  hid_t memtype, strtype; 
+  int has_str  = -1;
+
+  for (int i = 0; i < nmembers; i++) 
+    c_size += (H5Tget_size(H5Tget_member_type(hdty, i)));
+
+  memtype = H5Tcreate (H5T_COMPOUND, c_size);
+  PROTECT(res = allocVector(VECSXP, nmembers));
+
+  /** construct the memtype so you can read in the data. **/
+  c_size = 0;
+  for (int i = 0; i < nmembers; i++) {
+    switch (H5Tget_member_class(hdty, i)) {
+    case H5T_INTEGER: 
+      H5Tinsert (memtype, H5Tget_member_name(hdty, i), c_size, H5T_NATIVE_INT);
+      SET_VECTOR_ELT(res, i, allocVector(INTSXP, nelts));
+      break;
+    case H5T_FLOAT:
+      H5Tinsert (memtype, H5Tget_member_name(hdty, i), c_size, H5T_NATIVE_DOUBLE);
+      SET_VECTOR_ELT(res, i, allocVector(REALSXP, nelts));
+      break;
+    case H5T_STRING:
+      strtype = H5Tcopy (H5T_C_S1);
+      has_str = 1;
+      if (H5Tis_variable_str(H5Tget_member_type(hdty, i))) {
+	H5Tset_size(strtype, H5T_VARIABLE);
+	H5Tinsert(memtype, H5Tget_member_name(hdty, i), c_size, strtype);
+      } else {
+	H5Tset_size(strtype, H5Tget_size(H5Tget_member_type(hdty, i)));
+	H5Tinsert(memtype, H5Tget_member_name(hdty, i), c_size, strtype);
+      }
+      SET_VECTOR_ELT(res, i, allocVector(STRSXP, nelts));
+      break;
+    default:
+      error("Unsupported class %d in %s\n", H5Tget_member_class(hdty, i), __func__);
+      break;
+    }
+    c_size += (H5Tget_size(H5Tget_member_type(hdty, i)));
+  }
+
+  /** read **/
+  void* buf = malloc(c_size*nelts);
+  H5Dread (HID(h5_obj), memtype, memspace, filespace, H5P_DEFAULT, buf);
+  
+  /** put the results into a list. **/
+  for (int i = 0; i < nelts; i++) {
+    int current_offset = 0;
+    for (int j = 0; j < nmembers; j++) {
+      switch (H5Tget_member_class(hdty, j)) {
+      case H5T_INTEGER: 
+	INTEGER(VECTOR_ELT(res, j))[i] = ((int*) (buf + i*c_size + current_offset))[0];
+	break;
+      case H5T_FLOAT:
+	REAL(VECTOR_ELT(res, j))[i] = ((double*) (buf + i*c_size + current_offset))[0];
+	break;
+      case H5T_STRING:
+	if (H5Tis_variable_str(H5Tget_member_type(hdty, j))) {
+	  SET_STRING_ELT(VECTOR_ELT(res, j), i, mkChar(((char**) (buf + i*c_size + current_offset))[0]));
+	} else {
+	  SET_STRING_ELT(VECTOR_ELT(res, j), i, mkChar(((char*) (buf + i*c_size + current_offset))));
+	}
+	break;
+      default:
+	error("Unsupported class in %s\n", __func__);
+	break;
+      }
+      current_offset += H5Tget_size(H5Tget_member_type(hdty, j));
+    }
+  }
+
+  /** names **/
+  SEXP lst_names;
+
+  PROTECT(lst_names = allocVector(VECSXP, nmembers));
+  for (int j = 0; j < nmembers; j++) {
+    SET_VECTOR_ELT(lst_names, j, mkChar(H5Tget_member_name(hdty, j)));
+  }
+  setAttrib(res, R_NamesSymbol, lst_names);
+  
+  if (has_str > 0) { 
+    /** cleanup **/
+    if (memspace == H5S_ALL) {
+      hid_t space = _h5R_get_space(h5_obj);
+      H5Dvlen_reclaim (memtype, space, H5P_DEFAULT, buf);
+      H5Sclose(space);
+    } else {
+      H5Dvlen_reclaim (memtype, memspace, H5P_DEFAULT, buf);
+    }
+    H5Tclose(strtype);
+  }
+  free(buf);
+  H5Tclose(memtype);
+  H5Tclose(hdty);
+
+  UNPROTECT(2);
+ 
+  return res;
 }
 
 SEXP h5R_read_dataset_all(SEXP h5_dataset) {

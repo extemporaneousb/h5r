@@ -506,7 +506,9 @@ readSlab <- function(h5Dataset, offsets, dims) {
   if (! all((offsets + dims - 1) <= dim(h5Dataset)))
     stop("error invalid slice specification in readSlab.")
   d <- .myCall("h5R_read_dataset", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
-  dim(d) <- rev(dims)
+  
+  if (class(d) != 'list') ## compound datasets produce lists.
+    dim(d) <- rev(dims)
 
   if (! is.null(dim(h5Dataset))) aperm(d) else d
 }
