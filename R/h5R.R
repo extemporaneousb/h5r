@@ -116,6 +116,14 @@ H5File <- function(fileName, mode = 'r') {
   return(! is.null(h5Dataset@.data))
 }
 
+.openObjects <- function(h5File) {
+  .myCall("h5R_get_object_count", .ePtr(h5File))
+}
+
+.mallocTrim <- function() {
+  .myCall("h5R_malloc_trim")
+}
+
 setMethod("getH5Group", c("H5Container", "character"), function(h5Obj, groupName) {
   if (is.null(x <- .myCall("h5R_get_group", .ePtr(h5Obj), groupName)))
     stop(paste("Group:", groupName, "cannot be opened."))
@@ -499,6 +507,7 @@ setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
 }
 
 read1DSlabs <- function(h5Dataset, offsets, dims) {
+  print("calling read1DSlabs")
   .myCall("h5R_read_1d_slabs", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
 }
 

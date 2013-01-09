@@ -4,149 +4,177 @@
 #include <hdf5.h>
 #include <Rinternals.h>    
 #include <R.h>
+#include <malloc.h>
 
-#define DEBUG 1
+#define DEBUG 0
+#define MEMORYDEBUG 0
+
 #define HID(argname) (((h5_holder*) R_ExternalPtrAddr(argname))->id)
 #define NM(argname) (CHAR(STRING_ELT(argname, 0)))
 #define SUCCESS ScalarLogical(1)
 #define FAILURE ScalarLogical(0)
 
 typedef struct h5_holder {
-  int is_file;
-  hid_t id;
+    int is_file;
+    hid_t id;
 } h5_holder;
 
+SEXP h5R_malloc_trim() {
+#ifdef __GLIBC__
+    return ScalarInteger(malloc_trim(0));
+#else
+    return ScalarInteger(-1);
+#endif
+}
+
 void h5R_finalizer(SEXP h5_obj) {
-  h5_holder* h = (h5_holder*) R_ExternalPtrAddr(h5_obj);
-  if (! h) {
-    return;
-  }
-  if (h->is_file == 1) {
-    H5Fflush(HID(h5_obj), H5F_SCOPE_GLOBAL);
-    H5Fclose(HID(h5_obj));
-  } else {
-    switch (H5Iget_type(HID(h5_obj))) {
-    case H5I_DATASET:
-      H5Dclose(HID(h5_obj));
-      break;
-    case H5I_ATTR:
-      H5Aclose(HID(h5_obj));
-      break;
-    case H5I_GROUP:
-      H5Gclose(HID(h5_obj));
-      break;
-    default:
-      break;
+    h5_holder* h = (h5_holder*) R_ExternalPtrAddr(h5_obj);
+    if (! h) {
+	return;
     }
-  }
-  Free(h);
-  R_ClearExternalPtr(h5_obj);
+    if (h->is_file == 1) {
+	if (MEMORYDEBUG) Rprintf("Flushing and closing file.\n");
+	H5Fflush(HID(h5_obj), H5F_SCOPE_GLOBAL);
+	H5Fclose(HID(h5_obj));
+    } else {
+	switch (H5Iget_type(HID(h5_obj))) {
+	case H5I_DATASET:
+	    if (MEMORYDEBUG) Rprintf("Closing dataset.\n");
+	    H5Dclose(HID(h5_obj));
+	    break;
+	case H5I_ATTR:
+	    if (MEMORYDEBUG) Rprintf("Closing attribute.\n");
+	    H5Aclose(HID(h5_obj));
+	    break;
+	case H5I_GROUP:
+	    if (MEMORYDEBUG) Rprintf("Closing group.\n");
+	    H5Gclose(HID(h5_obj));
+	    break;
+	default:
+	    break;
+	}
+    }
+    Free(h);
+    R_ClearExternalPtr(h5_obj);
+    
+    // This call is seemingly a noop.
+    H5garbage_collect();
+
+    // Not sure if calling this here will be sufficient. 
+    h5R_malloc_trim();
 }
 
 SEXP _h5R_make_holder (hid_t id, int is_file) {
-  if (id < 0) {
-    return R_NilValue;
-  } 
-  h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
-  holder->id = id;
-  holder->is_file = is_file;
-  SEXP e_ptr = R_MakeExternalPtr(holder, R_NilValue, R_NilValue); 
-  PROTECT(e_ptr);
-  R_RegisterCFinalizerEx(e_ptr, h5R_finalizer, TRUE);
-  UNPROTECT(1); 
-  return e_ptr;
+    if (id < 0) {
+	return R_NilValue;
+    } 
+    h5_holder* holder = (h5_holder*) Calloc(1, h5_holder);
+    holder->id = id;
+    holder->is_file = is_file;
+    SEXP e_ptr = R_MakeExternalPtr(holder, R_NilValue, R_NilValue); 
+    PROTECT(e_ptr);
+    R_RegisterCFinalizerEx(e_ptr, h5R_finalizer, TRUE);
+    UNPROTECT(1); 
+    return e_ptr;
 }
 
 SEXP h5R_flush(SEXP h5_file) {
-  H5Fflush(HID(h5_file), H5F_SCOPE_GLOBAL);
-  return SUCCESS;
+    H5Fflush(HID(h5_file), H5F_SCOPE_GLOBAL);
+    return SUCCESS;
 }
 
 SEXP h5R_open(SEXP filename, SEXP mode) {
-  int _mode_ = (INTEGER(mode)[0] == 1) ? H5F_ACC_RDWR : H5F_ACC_RDONLY;
-  return _h5R_make_holder(H5Fopen(NM(filename), _mode_, H5P_DEFAULT), 1);
+    int _mode_ = (INTEGER(mode)[0] == 1) ? H5F_ACC_RDWR : H5F_ACC_RDONLY;
+    return _h5R_make_holder(H5Fopen(NM(filename), _mode_, H5P_DEFAULT), 1);
 }
 
 SEXP h5R_create(SEXP filename) {
-  return _h5R_make_holder(H5Fcreate(NM(filename), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT), 1);
+    return _h5R_make_holder(H5Fcreate(NM(filename), H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT), 1);
 }
 
 SEXP h5R_get_group(SEXP h5_obj, SEXP group_name) {
-  return _h5R_make_holder(H5Gopen2(HID(h5_obj), NM(group_name), H5P_DEFAULT), 0);
+    return _h5R_make_holder(H5Gopen2(HID(h5_obj), NM(group_name), H5P_DEFAULT), 0);
 }
 
 SEXP h5R_create_group(SEXP h5_obj, SEXP group_name) {
-  return _h5R_make_holder(H5Gcreate2(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT), 0);
+    return _h5R_make_holder(H5Gcreate2(HID(h5_obj), NM(group_name), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT), 0);
 }
 
 SEXP h5R_get_dataset(SEXP h5_obj, SEXP dataset_name) {
-  return _h5R_make_holder(H5Dopen2(HID(h5_obj), NM(dataset_name), H5P_DEFAULT), 0);
+    return _h5R_make_holder(H5Dopen2(HID(h5_obj), NM(dataset_name), H5P_DEFAULT), 0);
 }
 
 SEXP h5R_get_attr(SEXP h5_obj, SEXP attr_name) {
-  return _h5R_make_holder(H5Aopen(HID(h5_obj), NM(attr_name), H5P_DEFAULT), 0);
+    return _h5R_make_holder(H5Aopen(HID(h5_obj), NM(attr_name), H5P_DEFAULT), 0);
 }
 
+SEXP h5R_garbage_collect() {
+    return ScalarInteger(H5garbage_collect());
+}
+
+// callers of this function need to clean up using: H5Sclose.
 hid_t _h5R_get_space(SEXP h5_obj) {
-  hid_t space = -1;
-
-  switch (H5Iget_type(HID(h5_obj))) {
-  case H5I_DATASET:
-    space = H5Dget_space(HID(h5_obj));
-    break;
-  case H5I_ATTR:
-    space = H5Aget_space(HID(h5_obj));
-    break;
-  default:
-    error("Unknown object in %s.\n", __func__);
-  }
-  return space;
+    hid_t space = -1;
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	space = H5Dget_space(HID(h5_obj));
+	break;
+    case H5I_ATTR:
+	space = H5Aget_space(HID(h5_obj));
+	break;
+    default:
+	error("Unknown object type in %s.\n", __func__);
+    }
+    return space;
 }
 
+// callers of this function need to clean up using: H5Tclose. 
 hid_t _h5R_get_type(SEXP h5_obj) {
-  hid_t dtype = -1;
-
-  switch (H5Iget_type(HID(h5_obj))) {
-  case H5I_DATASET:
-    dtype = H5Dget_type(HID(h5_obj));
-    break;
-  case H5I_ATTR:
-    dtype = H5Aget_type(HID(h5_obj));
-    break;
-  default:
-    error("Unknown object in %s.\n", __func__);
-  }
-  return dtype;
+    hid_t dtype = -1;
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	dtype = H5Dget_type(HID(h5_obj));
+	break;
+    case H5I_ATTR:
+	dtype = H5Aget_type(HID(h5_obj));
+	break;
+    default:
+	error("Unknown object type in %s.\n", __func__);
+    }
+    return dtype;
 }
 
 int _h5R_get_size (SEXP h5_obj) {
-  int s = -1;
-
-  switch (H5Iget_type(HID(h5_obj))) {
-  case H5I_DATASET:
-    s = H5Tget_size(H5Dget_type(HID(h5_obj)));
-    break;
-  case H5I_ATTR:
-    s = H5Tget_size(H5Aget_type(HID(h5_obj)));
-    break;
-  default:
-    error("Unknown object in %s.\n", __func__);
-  }
-  return s;
+    int s   = -1;
+    hid_t t = -1; 
+    switch (H5Iget_type(HID(h5_obj))) {
+    case H5I_DATASET:
+	t = H5Dget_type(HID(h5_obj));
+	s = H5Tget_size(t);
+	break;
+    case H5I_ATTR:
+	t = H5Aget_type(HID(h5_obj));
+	s = H5Tget_size(t);
+	break;
+    default:
+	error("Unknown object type in %s.\n", __func__);
+    }
+    H5Tclose(t);
+    return s;
 }
 
 int _h5R_is_vlen (SEXP h5_obj) {
-  hid_t hdty = _h5R_get_type(h5_obj);
-  int rval = H5Tis_variable_str(hdty);
-  H5Tclose(hdty);
-  return rval;
+    hid_t hdty = _h5R_get_type(h5_obj);
+    int rval = H5Tis_variable_str(hdty);
+    H5Tclose(hdty);
+    return rval;
 }
 
 int _h5R_get_ndims(SEXP h5_obj) {
-  hid_t space = _h5R_get_space(h5_obj);
-  int ndims = H5Sget_simple_extent_ndims(space);
-  H5Sclose(space);
-  return ((ndims < 0) ? 1 : ndims);
+    hid_t space = _h5R_get_space(h5_obj);
+    int ndims = H5Sget_simple_extent_ndims(space);
+    H5Sclose(space);
+    return ((ndims < 0) ? 1 : ndims);
 }
 
 int _h5R_get_nelts(SEXP h5_obj) {
@@ -188,6 +216,10 @@ SEXP h5R_get_dims(SEXP h5_obj) {
   H5Sclose(space);
     
   return res;
+}
+
+SEXP h5R_get_object_count(SEXP h5_file) {
+    return ScalarInteger(H5Fget_obj_count(HID(h5_file), H5F_OBJ_ALL));
 }
 
 /** ******************************************************************************
