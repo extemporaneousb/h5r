@@ -507,7 +507,6 @@ setMethod("[", c("H5Dataset", "hSlab", "missing", "missing"), function(x, i) {
 }
 
 read1DSlabs <- function(h5Dataset, offsets, dims) {
-  print("calling read1DSlabs")
   .myCall("h5R_read_1d_slabs", .ePtr(h5Dataset), as.integer(offsets - 1), as.integer(dims))
 }
 
