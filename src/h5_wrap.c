@@ -549,8 +549,12 @@ SEXP h5R_read_1d_slabs(SEXP h5_dataset, SEXP _offsets, SEXP _counts) {
     
   for (i = 0; i < rlen; i++) {
     INTEGER(_SEXP_offsets)[0] = offsets[i];
-    INTEGER(_SEXP_counts)[0] = counts[i];
-    SET_VECTOR_ELT(r_lst, i, h5R_read_dataset(h5_dataset, _SEXP_offsets, _SEXP_counts));
+    INTEGER(_SEXP_counts)[0]  = counts[i];
+    if (counts[i] <= 0) {
+	SET_VECTOR_ELT(r_lst, i, R_NilValue);
+    } else {
+	SET_VECTOR_ELT(r_lst, i, h5R_read_dataset(h5_dataset, _SEXP_offsets, _SEXP_counts));
+    }
   }
   UNPROTECT(3);
   return(r_lst);
