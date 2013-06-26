@@ -4,7 +4,11 @@
 #include <hdf5.h>
 #include <Rinternals.h>    
 #include <R.h>
+#ifdef __APPLE__
+#include <malloc/malloc.h>
+#else
 #include <malloc.h>
+#endif
 
 #define DEBUG 0
 #define MEMORYDEBUG 0
