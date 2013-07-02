@@ -120,10 +120,6 @@ H5File <- function(fileName, mode = 'r') {
   .myCall("h5R_get_object_count", .ePtr(h5File))
 }
 
-.mallocTrim <- function() {
-  .myCall("h5R_malloc_trim")
-}
-
 setMethod("getH5Group", c("H5Container", "character"), function(h5Obj, groupName) {
   if (is.null(x <- .myCall("h5R_get_group", .ePtr(h5Obj), groupName)))
     stop(paste("Group:", groupName, "cannot be opened."))
