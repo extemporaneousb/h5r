@@ -2,6 +2,7 @@
 
 SOURCE=h5r
 TARGET=scratch/h5r-CRAN
+RCMD=/home/UNIXHOME/jbullard/projects/software/R/common/R-3.1-install/bin/R
 
 rm -rf $TARGET
 rsync -av $SOURCE/ $TARGET/
@@ -21,10 +22,10 @@ echo 'PKG_CFLAGS = -I$(LIB_HDF5)$(R_ARCH)/include -DWINDOWS' > $TARGET/src/Makev
 echo 'PKG_LIBS = -lm -L$(LIB_HDF5)$(R_ARCH)/lib -lhdf5 -lsz -lz' >> $TARGET/src/Makevars.win
 
 # 4. build
-R CMD build $TARGET
+$RCMD CMD build $TARGET
 
 BUILT_TARGET=h5r_`cat $TARGET/DESCRIPTION | grep Version | sed 's/Version: //g'`.tar.gz
 
 # 5. check
-R CMD check --as-cran --timings --install-args="--no-lock --preclean" $BUILT_TARGET
+$RCMD CMD check --as-cran --timings --install-args="--no-lock --preclean" $BUILT_TARGET
 
