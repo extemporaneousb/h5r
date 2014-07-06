@@ -1,8 +1,8 @@
 #!/bin/sh
 
 SOURCE=h5r
-TARGET=scratch/h5r-CRAN
-RCMD=/home/UNIXHOME/jbullard/projects/software/R/common/R-3.1-install/bin/R
+TARGET=/tmp/h5r-CRAN
+RCMD=`which R`
 
 rm -rf $TARGET
 rsync -av $SOURCE/ $TARGET/
