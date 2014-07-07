@@ -3,6 +3,12 @@
         *              1.4 SERIES NEWS                   *
         *                                                *
         **************************************************
+		CHANGES IN h5r VERSION 1.4.10
+
+CLEANUP
+   o Removed non-standard Windows subdirectory which contained 
+   versions of the HDF 5 library.
+
 
                 CHANGES IN h5r VERSION 1.4.4
 
