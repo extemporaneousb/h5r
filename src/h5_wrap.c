@@ -345,16 +345,16 @@ SEXP _h5R_read_compound(SEXP h5_obj, int nelts, hid_t memspace, hid_t filespace)
     for (int j = 0; j < nmembers; j++) {
       switch (H5Tget_member_class(hdty, j)) {
       case H5T_INTEGER: 
-	INTEGER(VECTOR_ELT(res, j))[i] = ((int*) (buf + i*c_size + current_offset))[0];
+	INTEGER(VECTOR_ELT(res, j))[i] = ((int*) ((char*)buf + i*c_size + current_offset))[0];
 	break;
       case H5T_FLOAT:
-	REAL(VECTOR_ELT(res, j))[i] = ((double*) (buf + i*c_size + current_offset))[0];
+	REAL(VECTOR_ELT(res, j))[i] = ((double*) ((char*)buf + i*c_size + current_offset))[0];
 	break;
       case H5T_STRING:
 	if (H5Tis_variable_str(H5Tget_member_type(hdty, j))) {
-	  SET_STRING_ELT(VECTOR_ELT(res, j), i, mkChar(((char**) (buf + i*c_size + current_offset))[0]));
+	  SET_STRING_ELT(VECTOR_ELT(res, j), i, mkChar(((char**) ((char*)buf + i*c_size + current_offset))[0]));
 	} else {
-	  SET_STRING_ELT(VECTOR_ELT(res, j), i, mkChar(((char*) (buf + i*c_size + current_offset))));
+	  SET_STRING_ELT(VECTOR_ELT(res, j), i, mkChar(((char*) ((char*)buf + i*c_size + current_offset))));
 	}
 	break;
       default:

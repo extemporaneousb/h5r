@@ -1,6 +1,7 @@
 useDynLib(h5r)
 
 import(methods)
+import(utils)
 
 exportClasses(H5Obj,
               H5File,
